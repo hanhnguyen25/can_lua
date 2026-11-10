@@ -78,7 +78,9 @@ Future<void> shareExcel(List<Ticket> tickets, {String label = 'tat_ca'}) async {
 
   final bytes = excel.save();
   if (bytes == null) throw Exception('Không tạo được file Excel');
-  final file = await _tempFile('phieu_can_${label}_${stamp(DateTime.now())}.xlsx');
+  final file = await _tempFile(
+    'phieu_can_${label}_${stamp(DateTime.now())}.xlsx',
+  );
   await file.writeAsBytes(bytes, flush: true);
   await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
 }

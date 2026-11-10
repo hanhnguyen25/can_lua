@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'utils.dart';
 
 // ---------- Một khối cân: 5 cột x 5 hàng = 25 ô ----------
@@ -7,8 +8,10 @@ class Block {
   static const rows = 5;
   static const size = cols * rows;
 
-  final List<TextEditingController> ctrls =
-      List.generate(size, (_) => TextEditingController());
+  final List<TextEditingController> ctrls = List.generate(
+    size,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> nodes = List.generate(size, (_) => FocusNode());
   bool collapsed = false;
 
@@ -122,44 +125,44 @@ class Ticket {
   int get blockCount => (cells.length / Block.size).ceil();
 
   Calc get calc => Calc(
-        gross: cells.fold<double>(0, (a, b) => a + b),
-        bags: cells.where((v) => v > 0).length,
-        tarePerBag: tarePerBag,
-        tareBags: tareBags,
-        doPct: doPct,
-        tapPct: tapPct,
-        price: price,
-      );
+    gross: cells.fold<double>(0, (a, b) => a + b),
+    bags: cells.where((v) => v > 0).length,
+    tarePerBag: tarePerBag,
+    tareBags: tareBags,
+    doPct: doPct,
+    tapPct: tapPct,
+    price: price,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'kind': kind,
-        'customer': customer,
-        'note': note,
-        'time': time.toIso8601String(),
-        'cells': cells,
-        'tarePerBag': tarePerBag,
-        'tareBags': tareBags,
-        'doPct': doPct,
-        'tapPct': tapPct,
-        'price': price,
-      };
+    'id': id,
+    'kind': kind,
+    'customer': customer,
+    'note': note,
+    'time': time.toIso8601String(),
+    'cells': cells,
+    'tarePerBag': tarePerBag,
+    'tareBags': tareBags,
+    'doPct': doPct,
+    'tapPct': tapPct,
+    'price': price,
+  };
 
   factory Ticket.fromJson(Map<String, dynamic> j) => Ticket(
-        id: j['id'] as String,
-        kind: (j['kind'] as num?)?.toInt() ?? 0,
-        customer: (j['customer'] as String?) ?? '',
-        note: (j['note'] as String?) ?? '',
-        time: DateTime.parse(j['time'] as String),
-        cells: ((j['cells'] as List?) ?? [])
-            .map((e) => (e as num).toDouble())
-            .toList(),
-        tarePerBag: (j['tarePerBag'] as num?)?.toDouble() ?? 0,
-        tareBags: (j['tareBags'] as num?)?.toInt(),
-        doPct: (j['doPct'] as num?)?.toDouble() ?? 0,
-        tapPct: (j['tapPct'] as num?)?.toDouble() ?? 0,
-        price: (j['price'] as num?)?.toDouble() ?? 0,
-      );
+    id: j['id'] as String,
+    kind: (j['kind'] as num?)?.toInt() ?? 0,
+    customer: (j['customer'] as String?) ?? '',
+    note: (j['note'] as String?) ?? '',
+    time: DateTime.parse(j['time'] as String),
+    cells: ((j['cells'] as List?) ?? [])
+        .map((e) => (e as num).toDouble())
+        .toList(),
+    tarePerBag: (j['tarePerBag'] as num?)?.toDouble() ?? 0,
+    tareBags: (j['tareBags'] as num?)?.toInt(),
+    doPct: (j['doPct'] as num?)?.toDouble() ?? 0,
+    tapPct: (j['tapPct'] as num?)?.toDouble() ?? 0,
+    price: (j['price'] as num?)?.toDouble() ?? 0,
+  );
 
   // Bản sao để sửa mà không ảnh hưởng danh sách gốc
   Ticket copy() => Ticket.fromJson(toJson());

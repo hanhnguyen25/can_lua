@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'models.dart';
 
 class TicketStore {
@@ -20,7 +22,9 @@ class TicketStore {
   static Future<void> saveAll(List<Ticket> list) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-        _key, jsonEncode(list.map((t) => t.toJson()).toList()));
+      _key,
+      jsonEncode(list.map((t) => t.toJson()).toList()),
+    );
   }
 
   // Thêm mới, hoặc cập nhật nếu đã có phiếu cùng id

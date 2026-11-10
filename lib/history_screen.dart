@@ -76,7 +76,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _toast('Tháng ${month.month}/${month.year} chưa có phiếu nào');
           return;
         }
-        await shareExcel(list, label: 'thang_${two(month.month)}_${month.year}');
+        await shareExcel(
+          list,
+          label: 'thang_${two(month.month)}_${month.year}',
+        );
       } else if (v == 'backup') {
         if (tickets.isEmpty) {
           _toast('Chưa có phiếu nào để sao lưu');
@@ -87,9 +90,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         final n = await restoreBackup();
         if (n == null) return;
         await _load();
-        _toast(n == 0
-            ? 'Không có phiếu mới (đã có đủ trong máy)'
-            : 'Đã khôi phục $n phiếu');
+        _toast(
+          n == 0
+              ? 'Không có phiếu mới (đã có đủ trong máy)'
+              : 'Đã khôi phục $n phiếu',
+        );
       }
     } catch (e) {
       _toast('Có lỗi: $e');
@@ -121,10 +126,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
               onSelected: _onMenu,
               itemBuilder: (_) => const [
                 PopupMenuItem(
-                    value: 'excel_all', child: Text('Xuất Excel - tất cả phiếu')),
+                  value: 'excel_all',
+                  child: Text('Xuất Excel - tất cả phiếu'),
+                ),
                 PopupMenuItem(
-                    value: 'excel_month',
-                    child: Text('Xuất Excel - tháng đang xem')),
+                  value: 'excel_month',
+                  child: Text('Xuất Excel - tháng đang xem'),
+                ),
                 PopupMenuItem(value: 'backup', child: Text('Sao lưu')),
                 PopupMenuItem(value: 'restore', child: Text('Khôi phục')),
               ],
@@ -134,7 +142,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
-            tabs: [Tab(text: 'PHIẾU'), Tab(text: 'THỐNG KÊ')],
+            tabs: [
+              Tab(text: 'PHIẾU'),
+              Tab(text: 'THỐNG KÊ'),
+            ],
           ),
         ),
         body: loading
@@ -191,9 +202,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         Expanded(
           child: shown.isEmpty
               ? Center(
-                  child: Text(tickets.isEmpty
-                      ? 'Chưa có phiếu nào được lưu'
-                      : 'Không tìm thấy phiếu phù hợp'),
+                  child: Text(
+                    tickets.isEmpty
+                        ? 'Chưa có phiếu nào được lưu'
+                        : 'Không tìm thấy phiếu phù hợp',
+                  ),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -203,7 +216,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     final c = t.calc;
                     return Card(
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: kindColor(t.kind),
@@ -217,14 +232,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                            '${kindNames[t.kind]} · ${fmtDateTime(t.time)} · ${c.bags} bao'),
+                          '${kindNames[t.kind]} · ${fmtDateTime(t.time)} · ${c.bags} bao',
+                        ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('${fmtKg(c.net)} kg',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              '${fmtKg(c.net)} kg',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             Text('${fmtMoney(c.amount)} đ'),
                           ],
                         ),
@@ -252,7 +271,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final c = t.calc;
       total.add(c);
       byDay.putIfAbsent(t.time.day, () => _Agg()).add(c);
-      final name = t.customer.trim().isEmpty ? '(Không tên)' : t.customer.trim();
+      final name = t.customer.trim().isEmpty
+          ? '(Không tên)'
+          : t.customer.trim();
       byCustomer.putIfAbsent(name, () => _Agg()).add(c);
     }
 
@@ -275,14 +296,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () => _shiftMonth(-1)),
-            Text('Tháng ${month.month}/${month.year}',
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              icon: const Icon(Icons.chevron_left),
+              onPressed: () => _shiftMonth(-1),
+            ),
+            Text(
+              'Tháng ${month.month}/${month.year}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: () => _shiftMonth(1)),
+              icon: const Icon(Icons.chevron_right),
+              onPressed: () => _shiftMonth(1),
+            ),
           ],
         ),
         if (list.isEmpty)
@@ -298,11 +322,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 children: [
                   _statRow('Số phiếu', '${total.count}'),
                   _statRow('Số bao', '${total.bags}'),
-                  _statRow('Khối lượng thực', '${fmtKg(total.net)} kg',
-                      bold: true),
+                  _statRow(
+                    'Khối lượng thực',
+                    '${fmtKg(total.net)} kg',
+                    bold: true,
+                  ),
                   const Divider(),
-                  _statRow('Thành tiền', '${fmtMoney(total.money)} đ',
-                      bold: true),
+                  _statRow(
+                    'Thành tiền',
+                    '${fmtMoney(total.money)} đ',
+                    bold: true,
+                  ),
                 ],
               ),
             ),
@@ -316,9 +346,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     dense: true,
                     title: Text('${two(d)}/${two(month.month)}'),
                     subtitle: Text(
-                        '${byDay[d]!.count} phiếu · ${fmtKg(byDay[d]!.net)} kg'),
-                    trailing: Text('${fmtMoney(byDay[d]!.money)} đ',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                      '${byDay[d]!.count} phiếu · ${fmtKg(byDay[d]!.net)} kg',
+                    ),
+                    trailing: Text(
+                      '${fmtMoney(byDay[d]!.money)} đ',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
               ],
             ),
@@ -332,9 +365,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     dense: true,
                     title: Text(e.key),
                     subtitle: Text(
-                        '${e.value.count} phiếu · ${fmtKg(e.value.net)} kg'),
-                    trailing: Text('${fmtMoney(e.value.money)} đ',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                      '${e.value.count} phiếu · ${fmtKg(e.value.net)} kg',
+                    ),
+                    trailing: Text(
+                      '${fmtMoney(e.value.money)} đ',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
               ],
             ),
@@ -345,20 +381,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _header(String s) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-        child: Text(s,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      );
+    padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+    child: Text(
+      s,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    ),
+  );
 
   Widget _statRow(String label, String value, {bool bold = false}) {
     final style = TextStyle(
-        fontSize: bold ? 18 : 15,
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal);
+      fontSize: bold ? 18 : 15,
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: style), Text(value, style: style)],
+        children: [
+          Text(label, style: style),
+          Text(value, style: style),
+        ],
       ),
     );
   }

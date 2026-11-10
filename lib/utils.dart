@@ -34,13 +34,14 @@ String fmtPct(double v) =>
     v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
 String fmtMoney(double v) => v.round().toString().replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (m) => '.',
-    );
+  RegExp(r'\B(?=(\d{3})+(?!\d))'),
+  (m) => '.',
+);
 
 // ---------- Ngày giờ ----------
 String two(int n) => n.toString().padLeft(2, '0');
 String fmtDate(DateTime d) => '${two(d.day)}/${two(d.month)}/${d.year}';
-String fmtDateTime(DateTime d) => '${fmtDate(d)} ${two(d.hour)}:${two(d.minute)}';
+String fmtDateTime(DateTime d) =>
+    '${fmtDate(d)} ${two(d.hour)}:${two(d.minute)}';
 String stamp(DateTime d) =>
     '${d.year}${two(d.month)}${two(d.day)}_${two(d.hour)}${two(d.minute)}';
