@@ -1,11 +1,11 @@
 {
-    "name": "can_lua",
-    "short_name": "can_lua",
+    "name": "Cân cà phê",
+    "short_name": "Cân cà phê",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B4F8A",
+    "theme_color": "#0B4F8A",
+    "description": "Cân cà phê: nhập số cân, trừ bì, trừ độ, tính tiền, lưu phiếu và thống kê.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
