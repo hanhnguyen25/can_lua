@@ -1,30 +1,37 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:can_lua/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:can_lua/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  setUp(() {
+    // App đọc cài đặt đã lưu khi mở nên cần prefs giả trong test
+    SharedPreferences.setMockInitialValues({});
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('mở app: có 2 tab và lưới nhập số cân', (tester) async {
+    await tester.pumpWidget(const CanApp());
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('CÀ TƯƠI'), findsOneWidget);
+    expect(find.text('CÀ NHÂN'), findsOneWidget);
+    expect(find.text('TÍNH TIỀN'), findsOneWidget);
+    expect(find.text('PHIẾU CÂN'), findsNothing);
+    expect(find.byType(TextField), findsWidgets);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('nhập số cân: tổng khối và khối lượng thực cập nhật ngay', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const CanApp());
+    await tester.pumpAndSettle();
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), '60');
+    await tester.enterText(fields.at(1), '62.5');
+    await tester.pumpAndSettle();
+
+    // 60 + 62.5 = 122.5 hiện ở tổng khối và ở thanh dưới
+    expect(find.text('122.5'), findsWidgets);
   });
 }

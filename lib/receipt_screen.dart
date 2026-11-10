@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'export.dart';
+import 'grid_editor.dart';
 import 'models.dart';
 import 'storage.dart';
 import 'utils.dart';
@@ -26,21 +27,27 @@ class ReceiptView extends StatelessWidget {
             child: Text(
               'PHIẾU CÂN ${kindNames[t.kind].toUpperCase()}',
               style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: kindDark(t.kind)),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: kindDark(t.kind),
+              ),
             ),
           ),
           const SizedBox(height: 8),
           if (t.customer.trim().isNotEmpty)
-            Text('Khách hàng: ${t.customer.trim()}',
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          Text('Ngày: ${fmtDateTime(t.time)}',
-              style: const TextStyle(fontSize: 15)),
+            Text(
+              'Khách hàng: ${t.customer.trim()}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          Text(
+            'Ngày: ${fmtDateTime(t.time)}',
+            style: const TextStyle(fontSize: 15),
+          ),
           if (t.note.trim().isNotEmpty)
-            Text('Ghi chú: ${t.note.trim()}',
-                style: const TextStyle(fontSize: 15)),
+            Text(
+              'Ghi chú: ${t.note.trim()}',
+              style: const TextStyle(fontSize: 15),
+            ),
           const Divider(height: 20),
           for (int b = 0; b < t.blockCount; b++) _block(b),
           const Divider(height: 12),
@@ -112,9 +119,10 @@ class ReceiptView extends StatelessWidget {
                                   ? fmtNum(v(col * Block.rows + r))
                                   : '',
                               style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  color: kNavy),
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                                color: kNavy,
+                              ),
                             ),
                           ),
                         ),
@@ -129,35 +137,51 @@ class ReceiptView extends StatelessWidget {
               for (int col = 0; col < Block.cols; col++)
                 Expanded(
                   child: Center(
-                    child: Text(fmtKg(colTotal(col)),
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      fmtKg(colTotal(col)),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
             ],
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: Text('Tổng khối ${b + 1}: ${fmtKg(blockTotal)} kg',
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: kPurple)),
+            child: Text(
+              'Tổng khối ${b + 1}: ${fmtKg(blockTotal)} kg',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: kPurple,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _row(String label, String value, {bool bold = false, bool big = false}) {
+  Widget _row(
+    String label,
+    String value, {
+    bool bold = false,
+    bool big = false,
+  }) {
     final style = TextStyle(
-        fontSize: big ? 20 : (bold ? 18 : 15),
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal);
+      fontSize: big ? 20 : (bold ? 18 : 15),
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: style), Text(value, style: style)],
+        children: [
+          Text(label, style: style),
+          Text(value, style: style),
+        ],
       ),
     );
   }
@@ -220,6 +244,23 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     if (mounted) setState(() => busy = false);
   }
 
+  // Sửa số cân của phiếu (dùng được cho cả phiếu nháp lẫn phiếu đã lưu)
+  Future<void> _editCells() async {
+    final values = await Navigator.push<List<double>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            GridEditorScreen(cells: t.cells, color: kindColor(t.kind)),
+      ),
+    );
+    if (values == null || !mounted) return;
+    setState(() {
+      t.cells
+        ..clear()
+        ..addAll(values);
+    });
+  }
+
   Future<void> _delete() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -228,11 +269,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         content: const Text('Phiếu đã xóa không khôi phục được.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Xóa')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa'),
+          ),
         ],
       ),
     );
@@ -251,6 +294,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         foregroundColor: Colors.white,
         title: Text(widget.isDraft ? 'Phiếu mới' : 'Chi tiết phiếu'),
         actions: [
+          IconButton(
+            tooltip: 'Sửa số cân',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _editCells,
+          ),
           if (!widget.isDraft)
             IconButton(
               tooltip: 'Xóa phiếu',
@@ -315,7 +363,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     child: FilledButton.icon(
                       onPressed: _save,
                       icon: const Icon(Icons.save),
-                      label: Text(widget.isDraft ? 'Lưu phiếu' : 'Lưu thay đổi'),
+                      label: Text(
+                        widget.isDraft ? 'Lưu phiếu' : 'Lưu thay đổi',
+                      ),
                     ),
                   ),
                 ],
