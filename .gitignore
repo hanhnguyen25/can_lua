@@ -46,3 +46,11 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Ký ứng dụng: KHÔNG đưa khoá bí mật lên Git
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+
+# Gói web để upload tay lên GitHub Pages
+can_lua-web-github-pages.zip
