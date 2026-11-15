@@ -10,6 +10,10 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    # Flutter 3.50 chuyển material.dart sang package:material_ui; tạm ẩn cảnh báo
+    # để giữ code hiện tại chạy được trên cả bản cũ lẫn mới.
+    deprecated_member_use: ignore
   exclude:
     - build/**
     - android/**

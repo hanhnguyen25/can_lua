@@ -7,39 +7,44 @@ import 'package:shared_preferences/shared_preferences.dart';
 class WeighSettings {
   final String tareText; // bì mỗi bao (kg)
   final String bagTareText; // số bao bì để trừ
-  final String doText; // trừ độ (%)
+  final String doAmText; // độ ẩm (%) — dùng để tra bảng trừ độ
   final String tapText; // trừ tạp (%)
   final String priceText; // đơn giá (đ/kg)
+  final String autoNextText; // tự xuống ô sau khi nhập đủ N số (0 = tắt)
 
   const WeighSettings({
     this.tareText = '',
     this.bagTareText = '',
-    this.doText = '',
+    this.doAmText = '',
     this.tapText = '',
     this.priceText = '',
+    this.autoNextText = '2',
   });
 
   bool get isEmpty =>
       tareText.isEmpty &&
       bagTareText.isEmpty &&
-      doText.isEmpty &&
+      doAmText.isEmpty &&
       tapText.isEmpty &&
       priceText.isEmpty;
 
   Map<String, dynamic> toJson() => {
     'tare': tareText,
     'bagTare': bagTareText,
-    'doPct': doText,
+    'doAm': doAmText,
     'tapPct': tapText,
     'price': priceText,
+    'autoNext': autoNextText,
   };
 
   factory WeighSettings.fromJson(Map<String, dynamic> j) => WeighSettings(
     tareText: (j['tare'] as String?) ?? '',
     bagTareText: (j['bagTare'] as String?) ?? '',
-    doText: (j['doPct'] as String?) ?? '',
+    // Khoá 'doPct' là % trừ độ của bản cũ — khác đơn vị với độ ẩm nên bỏ qua.
+    doAmText: (j['doAm'] as String?) ?? '',
     tapText: (j['tapPct'] as String?) ?? '',
     priceText: (j['price'] as String?) ?? '',
+    autoNextText: (j['autoNext'] as String?) ?? '2',
   );
 }
 

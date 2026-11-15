@@ -14,6 +14,15 @@ class CanApp extends StatelessWidget {
       title: 'Cân cà phê',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: kBlue, useMaterial3: true),
+      // Giảm 10% cỡ chữ so với cài đặt cỡ chữ của máy
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        final heSo = (mq.textScaler.scale(10) / 10) * 0.9;
+        return MediaQuery(
+          data: mq.copyWith(textScaler: TextScaler.linear(heSo)),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const HomeScreen(),
     );
   }

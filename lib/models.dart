@@ -74,6 +74,7 @@ class Calc {
   final double doPct; // trừ độ (%), chỉ cà nhân
   final double tapPct; // trừ tạp (%), chỉ cà nhân
   final double price; // đơn giá (đ/kg)
+  final double? amountOverride; // thành tiền sửa tay trên phiếu
 
   const Calc({
     required this.gross,
@@ -83,15 +84,19 @@ class Calc {
     required this.doPct,
     required this.tapPct,
     required this.price,
+    this.amountOverride,
   });
 
   int get tareBagCount => tareBags ?? bags;
   double get tareTotal => tarePerBag * tareBagCount;
   double get afterTare => gross - tareTotal;
-  double get doKg => afterTare * doPct / 100;
+
+  // Trừ độ làm tròn tới kg gần nhất (bỏ phần thập phân) theo cách tính của đại lý
+  double get doKg => (afterTare * doPct / 100).roundToDouble();
+
   double get tapKg => afterTare * tapPct / 100;
   double get net => afterTare - doKg - tapKg;
-  double get amount => net * price;
+  double get amount => amountOverride ?? net * price;
 }
 
 // ---------- Phiếu cân đã lưu ----------
@@ -102,11 +107,14 @@ class Ticket {
   String note;
   final DateTime time;
   final List<double> cells; // nhiều khối, mỗi khối 25 ô, 0 = ô trống
-  final double tarePerBag;
-  final int? tareBags;
-  final double doPct;
-  final double tapPct;
-  final double price;
+  double tarePerBag;
+  int? tareBags;
+  double doPct;
+  double doAm;
+  double tapPct;
+  double price;
+  int? bagsOverride; // số bao sửa tay trên phiếu, null = đếm theo số ô đã nhập
+  double? amountOverride; // thành tiền sửa tay trên phiếu, null = tính theo đơn giá
 
   Ticket({
     required this.id,
@@ -118,20 +126,24 @@ class Ticket {
     required this.tarePerBag,
     required this.tareBags,
     required this.doPct,
+    this.doAm = 0,
     required this.tapPct,
     required this.price,
+    this.bagsOverride,
+    this.amountOverride,
   });
 
   int get blockCount => (cells.length / Block.size).ceil();
 
   Calc get calc => Calc(
     gross: cells.fold<double>(0, (a, b) => a + b),
-    bags: cells.where((v) => v > 0).length,
+    bags: bagsOverride ?? cells.where((v) => v > 0).length,
     tarePerBag: tarePerBag,
     tareBags: tareBags,
     doPct: doPct,
     tapPct: tapPct,
     price: price,
+    amountOverride: amountOverride,
   );
 
   Map<String, dynamic> toJson() => {
@@ -144,8 +156,11 @@ class Ticket {
     'tarePerBag': tarePerBag,
     'tareBags': tareBags,
     'doPct': doPct,
+    'doAm': doAm,
     'tapPct': tapPct,
     'price': price,
+    'bagsOverride': bagsOverride,
+    'amountOverride': amountOverride,
   };
 
   factory Ticket.fromJson(Map<String, dynamic> j) => Ticket(
@@ -160,8 +175,11 @@ class Ticket {
     tarePerBag: (j['tarePerBag'] as num?)?.toDouble() ?? 0,
     tareBags: (j['tareBags'] as num?)?.toInt(),
     doPct: (j['doPct'] as num?)?.toDouble() ?? 0,
+    doAm: (j['doAm'] as num?)?.toDouble() ?? 0,
     tapPct: (j['tapPct'] as num?)?.toDouble() ?? 0,
     price: (j['price'] as num?)?.toDouble() ?? 0,
+    bagsOverride: (j['bagsOverride'] as num?)?.toInt(),
+    amountOverride: (j['amountOverride'] as num?)?.toDouble(),
   );
 
   // Bản sao để sửa mà không ảnh hưởng danh sách gốc

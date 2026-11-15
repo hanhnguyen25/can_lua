@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import 'do_am_ca_phe.dart';
 import 'export.dart';
 import 'grid_editor.dart';
 import 'models.dart';
@@ -51,11 +53,12 @@ class ReceiptView extends StatelessWidget {
           const Divider(height: 20),
           for (int b = 0; b < t.blockCount; b++) _block(b),
           const Divider(height: 12),
-          _row('Số bao', '${c.bags}'),
+          _row('Số mạ', '${c.bags}'),
           _row('Tổng cân', '${fmtKg(c.gross)} kg'),
           _row('Số bao bì trừ', '${c.tareBagCount}'),
           _row('Trừ bì', '${fmtKg(c.tareTotal)} kg'),
           if (isNhan) ...[
+            if (t.doAm > 0) _row('Độ ẩm', '${fmtNum(t.doAm)} %'),
             _row('Trừ độ (${fmtPct(c.doPct)}%)', '${fmtKg(c.doKg)} kg'),
             _row('Trừ tạp (${fmtPct(c.tapPct)}%)', '${fmtKg(c.tapKg)} kg'),
           ],
@@ -204,6 +207,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   final _boundaryKey = GlobalKey();
   late final TextEditingController customerCtrl;
   late final TextEditingController noteCtrl;
+  late final TextEditingController tareCtrl;
+  late final TextEditingController bagTareCtrl;
+  late final TextEditingController doAmCtrl;
+  late final TextEditingController tapCtrl;
+  late final TextEditingController priceCtrl;
   bool busy = false;
 
   Ticket get t => widget.ticket;
@@ -213,13 +221,91 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     super.initState();
     customerCtrl = TextEditingController(text: t.customer);
     noteCtrl = TextEditingController(text: t.note);
+    tareCtrl = TextEditingController(
+      text: t.tarePerBag == 0 ? '' : fmtNum(t.tarePerBag),
+    );
+    bagTareCtrl = TextEditingController(text: t.tareBags?.toString() ?? '');
+    doAmCtrl = TextEditingController(text: t.doAm == 0 ? '' : fmtNum(t.doAm));
+    tapCtrl = TextEditingController(
+      text: t.tapPct == 0 ? '' : fmtNum(t.tapPct),
+    );
+    priceCtrl = TextEditingController(
+      text: t.price == 0 ? '' : t.price.round().toString(),
+    );
   }
 
   @override
   void dispose() {
     customerCtrl.dispose();
     noteCtrl.dispose();
+    tareCtrl.dispose();
+    bagTareCtrl.dispose();
+    doAmCtrl.dispose();
+    tapCtrl.dispose();
+    priceCtrl.dispose();
     super.dispose();
+  }
+
+  // Sửa thông số nào cũng tính lại tiền theo công thức
+  void _tinhLaiTien() {
+    t.amountOverride = null;
+  }
+
+  void _onTareChanged(String v) {
+    setState(() {
+      t.tarePerBag = parseNumber(v);
+      _tinhLaiTien();
+    });
+  }
+
+  void _onBagTareChanged(String v) {
+    setState(() {
+      final s = v.trim();
+      t.tareBags = s.isEmpty ? null : parseNumber(s).round();
+      _tinhLaiTien();
+    });
+  }
+
+  void _onDoAmChanged(String v) {
+    setState(() {
+      t.doAm = parseNumber(v);
+      t.doPct = phanTramTruTheoDoAm(t.doAm);
+      _tinhLaiTien();
+    });
+  }
+
+  void _onTapChanged(String v) {
+    setState(() {
+      t.tapPct = parseNumber(v);
+      _tinhLaiTien();
+    });
+  }
+
+  void _onPriceChanged(String v) {
+    setState(() {
+      t.price = parseNumber(v);
+      _tinhLaiTien();
+    });
+  }
+
+  Widget _oSo(
+    String nhan,
+    TextEditingController controller,
+    ValueChanged<String> onChanged,
+  ) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+      decoration: InputDecoration(
+        labelText: nhan,
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        border: const OutlineInputBorder(),
+      ),
+      onChanged: onChanged,
+    );
   }
 
   void _toast(String m) =>
@@ -335,6 +421,111 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       border: OutlineInputBorder(),
                     ),
                     onChanged: (v) => setState(() => t.note = v.trim()),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    color: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Thông số phiếu (sửa được)',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _oSo(
+                                  'Bì mỗi bao (kg)',
+                                  tareCtrl,
+                                  _onTareChanged,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _oSo(
+                                  'Số bao bì trừ',
+                                  bagTareCtrl,
+                                  _onBagTareChanged,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Số mạ',
+                                    isDense: true,
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  child: Text(
+                                    '${t.calc.bags}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _oSo(
+                                  'Đơn giá (đ/kg)',
+                                  priceCtrl,
+                                  _onPriceChanged,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (t.kind == 1) ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _oSo(
+                                    'Độ ẩm (%)',
+                                    doAmCtrl,
+                                    _onDoAmChanged,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _oSo(
+                                    'Trừ tạp (%)',
+                                    tapCtrl,
+                                    _onTapChanged,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 10),
+                          // Thành tiền chỉ hiển thị, tính tự động
+                          InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: 'Thành tiền (đ)',
+                              isDense: true,
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(),
+                            ),
+                            child: Text(
+                              fmtMoney(t.calc.amount),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   RepaintBoundary(

@@ -13,6 +13,7 @@ Ticket _ticket({
   int? tareBags,
   double tarePerBag = 0,
   double doPct = 0,
+  double doAm = 0,
   double tapPct = 0,
   double price = 0,
   DateTime? time,
@@ -26,6 +27,7 @@ Ticket _ticket({
   tarePerBag: tarePerBag,
   tareBags: tareBags,
   doPct: doPct,
+  doAm: doAm,
   tapPct: tapPct,
   price: price,
 );
@@ -61,9 +63,11 @@ void main() {
       expect(fmtMoney(999.6), '1.000');
     });
 
-    test('phần trăm bỏ .0 khi là số nguyên', () {
+    test('phần trăm bỏ .0 khi là số nguyên, giữ 2 số lẻ khi cần', () {
       expect(fmtPct(5), '5');
       expect(fmtPct(5.5), '5.5');
+      expect(fmtPct(0.57), '0.57');
+      expect(fmtPct(10.22), '10.22');
     });
   });
 
@@ -121,10 +125,25 @@ void main() {
         price: 1000,
       );
       expect(c.afterTare, closeTo(99, 1e-9));
-      expect(c.doKg, closeTo(9.9, 1e-9));
+      expect(c.doKg, 10); // 9,9 kg làm tròn tới kg gần nhất
       expect(c.tapKg, closeTo(1.98, 1e-9));
-      expect(c.net, closeTo(87.12, 1e-9));
-      expect(c.amount, closeTo(87120, 1e-6));
+      expect(c.net, closeTo(87.02, 1e-9));
+      expect(c.amount, closeTo(87020, 1e-6));
+    });
+
+    test('trừ độ làm tròn tới kg gần nhất: 5,7 → 6', () {
+      const c = Calc(
+        gross: 1000,
+        bags: 1,
+        tarePerBag: 0,
+        tareBags: 0,
+        doPct: 0.57, // độ ẩm 15,5
+        tapPct: 0,
+        price: 10000,
+      );
+      expect(c.doKg, 6);
+      expect(c.net, closeTo(994, 1e-9));
+      expect(c.amount, closeTo(9940000, 1e-6));
     });
 
     test('số bao bì để trừ khác số bao đã cân', () {
@@ -145,7 +164,7 @@ void main() {
 
   group('Ticket', () {
     test('JSON giữ đủ dữ liệu, kể cả tareBags = null', () {
-      final t = _ticket(kind: 1, customer: 'Chị Lan', doPct: 5);
+      final t = _ticket(kind: 1, customer: 'Chị Lan', doPct: 5, doAm: 15.5);
       final back = Ticket.fromJson(t.toJson());
       expect(back.id, t.id);
       expect(back.kind, 1);
@@ -154,6 +173,7 @@ void main() {
       expect(back.cells, t.cells);
       expect(back.tareBags, isNull);
       expect(back.doPct, 5);
+      expect(back.doAm, 15.5);
       expect(back.blockCount, 1);
       expect(back.calc.gross, 121.5);
       expect(back.calc.bags, 2);
@@ -174,6 +194,30 @@ void main() {
       expect(t.calc.bags, 60);
       expect(t.calc.gross, 3000);
     });
+
+    test('sửa tay số bao và thành tiền trên phiếu', () {
+      final t = _ticket(cells: List.filled(5, 100), doPct: 10, price: 1000);
+      expect(t.calc.bags, 5);
+
+      t.bagsOverride = 4;
+      expect(t.calc.bags, 4);
+      expect(t.calc.tareBagCount, 4); // bì mặc định theo số bao đã sửa
+
+      t.amountOverride = 500000;
+      expect(t.calc.amount, 500000);
+
+      // Bỏ sửa tiền thì quay lại tính theo đơn giá
+      t.amountOverride = null;
+      expect(t.calc.amount, closeTo(t.calc.net * 1000, 1e-6));
+
+      // Lưu vào JSON vẫn giữ số đã sửa
+      t.amountOverride = 500000;
+      final back = Ticket.fromJson(t.toJson());
+      expect(back.bagsOverride, 4);
+      expect(back.amountOverride, 500000);
+      expect(back.calc.bags, 4);
+      expect(back.calc.amount, 500000);
+    });
   });
 
   group('SettingsStore', () {
@@ -191,16 +235,18 @@ void main() {
       );
       await SettingsStore.save(
         1,
-        const WeighSettings(doText: '5', tapText: '2'),
+        const WeighSettings(doAmText: '15,5', tapText: '2', autoNextText: '3'),
       );
 
       final tuoi = await SettingsStore.load(0);
       expect(tuoi.tareText, '0,2');
       expect(tuoi.priceText, '20000');
-      expect(tuoi.doText, '');
+      expect(tuoi.doAmText, '');
+      expect(tuoi.autoNextText, '2'); // mặc định
 
       final nhan = await SettingsStore.load(1);
-      expect(nhan.doText, '5');
+      expect(nhan.doAmText, '15,5');
+      expect(nhan.autoNextText, '3');
       expect(nhan.tapText, '2');
       expect(nhan.priceText, '');
     });

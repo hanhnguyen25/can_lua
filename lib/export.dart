@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:excel/excel.dart' as xl;
 import 'package:file_selector/file_selector.dart' hide XFile;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,10 +14,26 @@ import 'package:share_plus/share_plus.dart';
 import 'models.dart';
 import 'storage.dart';
 import 'utils.dart';
+import 'web_download.dart';
 
 Future<File> _tempFile(String name) async {
   final dir = await getTemporaryDirectory();
   return File('${dir.path}/$name');
+}
+
+/// Trên web: tải file thẳng xuống máy. Trên Android/iOS: chia sẻ như cũ.
+Future<void> _luuHoacChiaSe(
+  Uint8List bytes,
+  String fileName,
+  String mime,
+) async {
+  if (kIsWeb) {
+    taiFile(bytes, fileName, mime);
+    return;
+  }
+  final file = await _tempFile(fileName);
+  await file.writeAsBytes(bytes, flush: true);
+  await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
 }
 
 double _r2(double v) => double.parse(v.toStringAsFixed(2));
@@ -29,9 +46,7 @@ Future<void> shareWidgetImage(GlobalKey key, String name) async {
   final ui.Image image = await boundary.toImage(pixelRatio: 3);
   final ByteData? data = await image.toByteData(format: ui.ImageByteFormat.png);
   if (data == null) return;
-  final file = await _tempFile('$name.png');
-  await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
-  await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+  await _luuHoacChiaSe(data.buffer.asUint8List(), '$name.png', 'image/png');
 }
 
 // ---------- Xuất Excel (.xlsx) ----------
@@ -45,9 +60,10 @@ Future<void> shareExcel(List<Ticket> tickets, {String label = 'tat_ca'}) async {
       'Loại',
       'Khách hàng',
       'Ghi chú',
-      'Số bao',
+      'Số mạ',
       'Tổng cân (kg)',
       'Trừ bì (kg)',
+      'Độ ẩm (%)',
       'Trừ độ (kg)',
       'Trừ tạp (kg)',
       'Khối lượng thực (kg)',
@@ -68,6 +84,7 @@ Future<void> shareExcel(List<Ticket> tickets, {String label = 'tat_ca'}) async {
       xl.IntCellValue(c.bags),
       xl.DoubleCellValue(_r2(c.gross)),
       xl.DoubleCellValue(_r2(c.tareTotal)),
+      xl.DoubleCellValue(_r2(t.doAm)),
       xl.DoubleCellValue(_r2(c.doKg)),
       xl.DoubleCellValue(_r2(c.tapKg)),
       xl.DoubleCellValue(_r2(c.net)),
@@ -78,11 +95,11 @@ Future<void> shareExcel(List<Ticket> tickets, {String label = 'tat_ca'}) async {
 
   final bytes = excel.save();
   if (bytes == null) throw Exception('Không tạo được file Excel');
-  final file = await _tempFile(
+  await _luuHoacChiaSe(
+    Uint8List.fromList(bytes),
     'phieu_can_${label}_${stamp(DateTime.now())}.xlsx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   );
-  await file.writeAsBytes(bytes, flush: true);
-  await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
 }
 
 // ---------- Sao lưu (file .json) ----------
@@ -92,9 +109,11 @@ Future<void> shareBackup(List<Ticket> tickets) async {
     'version': 1,
     'tickets': tickets.map((t) => t.toJson()).toList(),
   });
-  final file = await _tempFile('sao_luu_can_${stamp(DateTime.now())}.json');
-  await file.writeAsString(json, flush: true);
-  await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+  await _luuHoacChiaSe(
+    Uint8List.fromList(utf8.encode(json)),
+    'sao_luu_can_${stamp(DateTime.now())}.json',
+    'application/json',
+  );
 }
 
 // ---------- Khôi phục từ file sao lưu ----------

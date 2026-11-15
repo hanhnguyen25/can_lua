@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'do_am_ca_phe.dart';
 import 'history_screen.dart';
 import 'models.dart';
 import 'receipt_screen.dart';
@@ -29,11 +30,13 @@ class _WeighScreenState extends State<WeighScreen> {
   final List<Block> blocks = [Block()];
   final tareCtrl = TextEditingController(); // bì mỗi bao
   final bagTareCtrl = TextEditingController(); // số bao bì để trừ
-  final doCtrl = TextEditingController(); // trừ độ (%), chỉ cà nhân
+  final doCtrl = TextEditingController(); // độ ẩm (%), chỉ cà nhân
   final tapCtrl = TextEditingController(); // trừ tạp (%), chỉ cà nhân
   final priceCtrl = TextEditingController();
 
   Timer? _saveTimer;
+  Timer? _autoNextTimer;
+  int _autoNextDigits = 2; // 0 = tắt
 
   static const numberKeyboard = TextInputType.numberWithOptions(decimal: true);
 
@@ -52,9 +55,10 @@ class _WeighScreenState extends State<WeighScreen> {
   WeighSettings get _settings => WeighSettings(
     tareText: tareCtrl.text,
     bagTareText: bagTareCtrl.text,
-    doText: doCtrl.text,
+    doAmText: doCtrl.text,
     tapText: tapCtrl.text,
     priceText: priceCtrl.text,
+    autoNextText: '$_autoNextDigits',
   );
 
   // Mở app: điền lại cài đặt của lần dùng trước (chỉ khi ô còn trống)
@@ -64,9 +68,10 @@ class _WeighScreenState extends State<WeighScreen> {
     setState(() {
       if (tareCtrl.text.isEmpty) tareCtrl.text = s.tareText;
       if (bagTareCtrl.text.isEmpty) bagTareCtrl.text = s.bagTareText;
-      if (doCtrl.text.isEmpty) doCtrl.text = s.doText;
+      if (doCtrl.text.isEmpty) doCtrl.text = s.doAmText;
       if (tapCtrl.text.isEmpty) tapCtrl.text = s.tapText;
       if (priceCtrl.text.isEmpty) priceCtrl.text = s.priceText;
+      _autoNextDigits = int.tryParse(s.autoNextText) ?? 2;
     });
   }
 
@@ -84,7 +89,23 @@ class _WeighScreenState extends State<WeighScreen> {
   int get bagCount => blocks.fold(0, (s, b) => s + b.count);
   double get grossTotal => blocks.fold(0.0, (s, b) => s + b.total);
 
-  double get doPercent => isNhan ? parseNumber(doCtrl.text) : 0;
+  // Độ ẩm người dùng nhập (%) — chỉ cà nhân mới trừ độ
+  double get doAmInput => isNhan ? parseNumber(doCtrl.text) : 0;
+
+  // % trừ độ tra từ bảng theo độ ẩm (0 khi ≤ 15 độ hoặc chưa nhập)
+  double get doPercent => isNhan ? phanTramTruTheoDoAm(doAmInput) : 0;
+
+  // Dòng gợi ý dưới ô độ ẩm trong bảng cài đặt
+  String get _moTaTruDo {
+    if (doCtrl.text.trim().isEmpty) {
+      return 'Nhập độ ẩm, app tự tra bảng để trừ độ';
+    }
+    if (doAmInput > doAmToiDaTraBang) {
+      return 'Vượt 25 độ — áp mức trừ tối đa ${fmtPct(phanTramTruToiDa)}%';
+    }
+    return 'Trừ độ ${fmtPct(doPercent)}% = ${fmtKg(calc.doKg)} kg';
+  }
+
   double get tapPercent => isNhan ? parseNumber(tapCtrl.text) : 0;
   int? get tareBagsInput => bagTareCtrl.text.trim().isEmpty
       ? null
@@ -119,6 +140,22 @@ class _WeighScreenState extends State<WeighScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => next?.requestFocus());
   }
 
+  // Tự nhảy sang ô kế tiếp khi đã nhập đủ N số.
+  // Chờ 0,4 giây để nếu đang gõ số thập phân (62.5) thì không nhảy sớm.
+  void _scheduleAutoNext(int bi, int i) {
+    _autoNextTimer?.cancel();
+    if (_autoNextDigits < 2) return;
+    final text = blocks[bi].ctrls[i].text.trim();
+    if (text.length != _autoNextDigits) return;
+    if (text.contains('.') || text.contains(',')) return;
+    if (parseNumber(text) <= 0) return;
+    _autoNextTimer = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      if (!blocks[bi].nodes[i].hasFocus) return;
+      _focusNext(bi, i);
+    });
+  }
+
   void _addBlock() => setState(() => blocks.add(Block()));
 
   // Xóa lưới số cân, giữ nguyên bì, đơn giá, % trừ
@@ -136,12 +173,33 @@ class _WeighScreenState extends State<WeighScreen> {
     });
   }
 
+  // Phiếu mới: đưa các thông số cài đặt về 0 và lưu luôn trạng thái trống
+  void _resetSettings() {
+    setState(() {
+      tareCtrl.clear();
+      bagTareCtrl.clear();
+      doCtrl.clear();
+      tapCtrl.clear();
+      priceCtrl.clear();
+    });
+    _persistSettings();
+  }
+
+  // Bắt đầu phiếu mới: xóa số cân + đưa cài đặt về 0
+  void _startNewTicket() {
+    _clearGrid();
+    _resetSettings();
+  }
+
   Future<void> _confirmReset() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Làm lại từ đầu?'),
-        content: Text('Toàn bộ số cân của phần $partName sẽ bị xóa.'),
+        content: Text(
+          'Toàn bộ số cân của phần $partName sẽ bị xóa và các thông số '
+          'cài đặt (bì, số bao, độ ẩm, tạp, đơn giá) về 0.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -154,115 +212,172 @@ class _WeighScreenState extends State<WeighScreen> {
         ],
       ),
     );
-    if (ok == true) _clearGrid();
+    if (ok == true) _startNewTicket();
   }
 
   void _openSettings() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          MediaQuery.of(ctx).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Cài đặt - $partName',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          // Đổi giá trị trong sheet thì cập nhật cả sheet (dòng gợi ý trừ độ)
+          // lẫn màn hình cân bên dưới.
+          void changed() {
+            setSheetState(() {});
+            setState(() {});
+            _persistSettingsSoon();
+          }
+
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              MediaQuery.of(ctx).viewInsets.bottom + 16,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: tareCtrl,
-              keyboardType: numberKeyboard,
-              decoration: const InputDecoration(
-                labelText: 'Bì mỗi bao (kg)',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) {
-                setState(() {});
-                _persistSettingsSoon();
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: bagTareCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Số bao bì để trừ',
-                helperText: 'Để trống = bằng số bao đã cân',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) {
-                setState(() {});
-                _persistSettingsSoon();
-              },
-            ),
-            if (isNhan) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: doCtrl,
-                      keyboardType: numberKeyboard,
-                      decoration: const InputDecoration(
-                        labelText: 'Trừ độ (%)',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) {
-                        setState(() {});
-                        _persistSettingsSoon();
-                      },
-                    ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cài đặt - $partName',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: tapCtrl,
-                      keyboardType: numberKeyboard,
-                      decoration: const InputDecoration(
-                        labelText: 'Trừ tạp (%)',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) {
-                        setState(() {});
-                        _persistSettingsSoon();
-                      },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: tareCtrl,
+                  keyboardType: numberKeyboard,
+                  decoration: const InputDecoration(
+                    labelText: 'Bì mỗi bao (kg)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => changed(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: bagTareCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Số bao bì để trừ',
+                    helperText: 'Để trống = bằng số bao đã cân',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => changed(),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.inventory_2_outlined,
+                      size: 18,
+                      color: Colors.black54,
                     ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Số mạ đã nhập: $bagCount',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Tự xuống ô sau khi nhập đủ:',
+                  style: TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final lua in const <int, String>{
+                      0: 'Tắt',
+                      2: '2 số',
+                      3: '3 số',
+                      4: '4 số',
+                    }.entries)
+                      ChoiceChip(
+                        label: Text(lua.value),
+                        selected: _autoNextDigits == lua.key,
+                        onSelected: (_) {
+                          setSheetState(() => _autoNextDigits = lua.key);
+                          setState(() {});
+                          _persistSettingsSoon();
+                        },
+                      ),
+                  ],
+                ),
+                if (isNhan) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: doCtrl,
+                          keyboardType: numberKeyboard,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9.,]'),
+                            ),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: 'Độ ẩm (%)',
+                            border: const OutlineInputBorder(),
+                            helperText: _moTaTruDo,
+                            helperMaxLines: 2,
+                          ),
+                          onChanged: (_) => changed(),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: tapCtrl,
+                          keyboardType: numberKeyboard,
+                          decoration: const InputDecoration(
+                            labelText: 'Trừ tạp (%)',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => changed(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Trừ độ tự tra bảng theo độ ẩm (bảng 15 – 25 độ).',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ],
-              ),
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceCtrl,
-              keyboardType: numberKeyboard,
-              decoration: const InputDecoration(
-                labelText: 'Đơn giá (đ/kg)',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) {
-                setState(() {});
-                _persistSettingsSoon();
-              },
+                const SizedBox(height: 12),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: numberKeyboard,
+                  decoration: const InputDecoration(
+                    labelText: 'Đơn giá (đ/kg)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => changed(),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Xong'),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Xong'),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -281,6 +396,7 @@ class _WeighScreenState extends State<WeighScreen> {
       tarePerBag: parseNumber(tareCtrl.text),
       tareBags: tareBagsInput,
       doPct: doPercent,
+      doAm: doAmInput,
       tapPct: tapPercent,
       price: parseNumber(priceCtrl.text),
     );
@@ -300,13 +416,14 @@ class _WeighScreenState extends State<WeighScreen> {
         builder: (_) => ReceiptScreen(ticket: _buildTicket(), isDraft: true),
       ),
     );
-    // Đã lưu phiếu thì xóa lưới để cân phiếu mới
-    if (saved == true) _clearGrid();
+    // Đã lưu phiếu thì xóa lưới + đưa cài đặt về 0 để cân phiếu mới
+    if (saved == true) _startNewTicket();
   }
 
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _autoNextTimer?.cancel();
     _persistSettings(); // lưu cài đặt lần cuối trước khi bỏ các controller
     for (final b in blocks) {
       b.dispose();
@@ -346,32 +463,40 @@ class _WeighScreenState extends State<WeighScreen> {
     return AppBar(
       backgroundColor: mainColor,
       foregroundColor: Colors.white,
-      titleSpacing: 12,
+      titleSpacing: 8,
       title: Align(
         alignment: Alignment.centerLeft,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: _calculate,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: darkColor,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.calculate_outlined, color: Colors.white),
-                SizedBox(width: 8),
-                Text(
-                  'TÍNH TIỀN',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: _calculate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: darkColor,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.calculate_outlined,
                     color: Colors.white,
+                    size: 20,
                   ),
-                ),
-              ],
+                  SizedBox(width: 6),
+                  Text(
+                    'TÍNH TIỀN',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -482,7 +607,7 @@ class _WeighScreenState extends State<WeighScreen> {
   Widget _blockCard(int bi) {
     final s = blocks[bi];
     const totalStyle = TextStyle(
-      fontSize: 24,
+      fontSize: 20,
       fontWeight: FontWeight.bold,
       color: kNavy,
     );
@@ -505,8 +630,8 @@ class _WeighScreenState extends State<WeighScreen> {
                       child: Center(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+                            horizontal: 8,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
                             color: kNavy,
@@ -516,7 +641,7 @@ class _WeighScreenState extends State<WeighScreen> {
                             '${bi * Block.size + (c + 1) * Block.rows}',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                           ),
                         ),
@@ -542,15 +667,21 @@ class _WeighScreenState extends State<WeighScreen> {
               ),
               const SizedBox(height: 8),
             ],
-            // Tổng từng cột
+            // Tổng từng cột: cột hẹp lại, có khoảng cách, số dài tự thu nhỏ
             Row(
               children: [
                 for (int c = 0; c < Block.cols; c++)
                   Expanded(
-                    child: Text(
-                      fmtKg(s.colTotal(c)),
-                      textAlign: TextAlign.center,
-                      style: totalStyle,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 7),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          fmtKg(s.colTotal(c)),
+                          maxLines: 1,
+                          style: totalStyle,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -570,13 +701,19 @@ class _WeighScreenState extends State<WeighScreen> {
                   onPressed: () => setState(() => s.collapsed = !s.collapsed),
                 ),
                 Expanded(
-                  child: Text(
-                    fmtKg(s.total),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: kPurple,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        fmtKg(s.total),
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: kPurple,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -605,7 +742,7 @@ class _WeighScreenState extends State<WeighScreen> {
   Widget _cell(int bi, int i) {
     final s = blocks[bi];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: TextField(
         controller: s.ctrls[i],
         focusNode: s.nodes[i],
@@ -618,7 +755,7 @@ class _WeighScreenState extends State<WeighScreen> {
           FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
         ],
         style: const TextStyle(
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: FontWeight.w600,
           color: kNavy,
         ),
@@ -632,7 +769,10 @@ class _WeighScreenState extends State<WeighScreen> {
             borderSide: BorderSide(color: kNavy, width: 2),
           ),
         ),
-        onChanged: (_) => _onChanged(),
+        onChanged: (_) {
+          _onChanged();
+          _scheduleAutoNext(bi, i);
+        },
         onEditingComplete: () => _focusNext(bi, i),
       ),
     );
@@ -641,7 +781,7 @@ class _WeighScreenState extends State<WeighScreen> {
   Widget _bottomBar() {
     final c = calc;
     const valueStyle = TextStyle(
-      fontSize: 26,
+      fontSize: 24,
       fontWeight: FontWeight.bold,
       color: kOrange,
     );
@@ -654,9 +794,15 @@ class _WeighScreenState extends State<WeighScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(Icons.grass, color: kOrange, size: 34),
-              const SizedBox(width: 8),
-              Text(fmtKg(c.net), style: valueStyle),
+              const Icon(Icons.grass, color: kOrange, size: 30),
+              const SizedBox(width: 6),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(fmtKg(c.net), style: valueStyle),
+                ),
+              ),
               Expanded(
                 child: Center(
                   child: IconButton(
@@ -664,18 +810,24 @@ class _WeighScreenState extends State<WeighScreen> {
                     icon: const Icon(
                       Icons.keyboard_double_arrow_up,
                       color: kNavy,
-                      size: 34,
+                      size: 30,
                     ),
                     onPressed: _openSettings,
                   ),
                 ),
               ),
-              Text(fmtMoney(c.amount), style: valueStyle),
-              const SizedBox(width: 6),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(fmtMoney(c.amount), style: valueStyle),
+                ),
+              ),
+              const SizedBox(width: 4),
               const Icon(
                 Icons.monetization_on_outlined,
                 color: kOrange,
-                size: 38,
+                size: 32,
               ),
             ],
           ),

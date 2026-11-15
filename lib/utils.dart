@@ -30,8 +30,11 @@ String fmtNum(double v) {
   return s;
 }
 
-String fmtPct(double v) =>
-    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+String fmtPct(double v) {
+  if (v == v.roundToDouble()) return v.toStringAsFixed(0);
+  if ((v * 10) == (v * 10).roundToDouble()) return v.toStringAsFixed(1);
+  return v.toStringAsFixed(2);
+}
 
 String fmtMoney(double v) => v.round().toString().replaceAllMapped(
   RegExp(r'\B(?=(\d{3})+(?!\d))'),

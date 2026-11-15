@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'export.dart';
@@ -150,7 +151,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         body: loading
             ? const Center(child: CircularProgressIndicator())
-            : TabBarView(children: [_listTab(), _statsTab()]),
+            : Column(
+                children: [
+                  if (kIsWeb) _webBanner(),
+                  Expanded(
+                    child: TabBarView(children: [_listTab(), _statsTab()]),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // Nhắc người dùng bản web: dữ liệu chỉ nằm trong trình duyệt này
+  Widget _webBanner() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFF3CD),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline, size: 18, color: Colors.black87),
+          SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Bản web: phiếu chỉ lưu trong trình duyệt này. '
+              'Nhớ bấm Sao lưu (JSON) thường xuyên.',
+              style: TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -232,7 +262,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          '${kindNames[t.kind]} · ${fmtDateTime(t.time)} · ${c.bags} bao',
+                          '${kindNames[t.kind]} · ${fmtDateTime(t.time)} · ${c.bags} mạ',
                         ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -321,7 +351,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Column(
                 children: [
                   _statRow('Số phiếu', '${total.count}'),
-                  _statRow('Số bao', '${total.bags}'),
+                  _statRow('Số mạ', '${total.bags}'),
                   _statRow(
                     'Khối lượng thực',
                     '${fmtKg(total.net)} kg',
