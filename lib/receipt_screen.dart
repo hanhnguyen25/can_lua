@@ -6,6 +6,7 @@ import 'export.dart';
 import 'grid_editor.dart';
 import 'models.dart';
 import 'storage.dart';
+import 'theme.dart';
 import 'utils.dart';
 
 // ---------- Phiếu cân dạng hình (cũng là phần được chụp thành ảnh) ----------
@@ -18,54 +19,157 @@ class ReceiptView extends StatelessWidget {
     final t = ticket;
     final c = t.calc;
     final isNhan = t.kind == 1;
+    final accent = kindColor(t.kind);
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
+          // Đầu phiếu: màu theo phần, tên phần và thời điểm cân
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'PHIẾU CÂN',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                        color: Colors.white.withValues(alpha: 0.75),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      kindNames[t.kind].toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  fmtDateTime(t.time),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (t.customer.trim().isNotEmpty)
+            _infoRow(Icons.person_outline, 'Khách hàng', t.customer.trim()),
+          if (t.note.trim().isNotEmpty)
+            _infoRow(Icons.sticky_note_2_outlined, 'Ghi chú', t.note.trim()),
+          const SizedBox(height: 6),
+          for (int b = 0; b < t.blockCount; b++) _block(b),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            decoration: BoxDecoration(
+              color: kTint,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _row('Số mạ', '${c.bags}'),
+                _row('Tổng cân', '${fmtKg(c.gross)} kg'),
+                _row('Số bao bì trừ', '${c.tareBagCount}'),
+                _row('Trừ bì', '${fmtKg(c.tareTotal)} kg'),
+                if (isNhan) ...[
+                  if (t.doAm > 0) _row('Độ ẩm', '${fmtNum(t.doAm)} %'),
+                  _row('Trừ độ (${fmtPct(c.doPct)}%)', '${fmtKg(c.doKg)} kg'),
+                  _row('Trừ tạp (${fmtPct(c.tapPct)}%)', '${fmtKg(c.tapKg)} kg'),
+                ],
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 5),
+                  child: Divider(height: 1, color: kLine),
+                ),
+                _row('Khối lượng thực', '${fmtKg(c.net)} kg', bold: true),
+                if (t.price > 0)
+                  _row('Đơn giá', '${fmtMoney(t.price)} đ/kg'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            decoration: BoxDecoration(
+              color: kOrange.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kOrange.withValues(alpha: 0.28)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Thành tiền',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: kInk,
+                  ),
+                ),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${fmtMoney(c.amount)} đ',
+                      style: numStyle(22, color: kOrange),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: kInk2),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: kInk2,
+            ),
+          ),
+          Expanded(
             child: Text(
-              'PHIẾU CÂN ${kindNames[t.kind].toUpperCase()}',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: kindDark(t.kind),
+              value,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: kInk,
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          if (t.customer.trim().isNotEmpty)
-            Text(
-              'Khách hàng: ${t.customer.trim()}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          Text(
-            'Ngày: ${fmtDateTime(t.time)}',
-            style: const TextStyle(fontSize: 15),
-          ),
-          if (t.note.trim().isNotEmpty)
-            Text(
-              'Ghi chú: ${t.note.trim()}',
-              style: const TextStyle(fontSize: 15),
-            ),
-          const Divider(height: 20),
-          for (int b = 0; b < t.blockCount; b++) _block(b),
-          const Divider(height: 12),
-          _row('Số mạ', '${c.bags}'),
-          _row('Tổng cân', '${fmtKg(c.gross)} kg'),
-          _row('Số bao bì trừ', '${c.tareBagCount}'),
-          _row('Trừ bì', '${fmtKg(c.tareTotal)} kg'),
-          if (isNhan) ...[
-            if (t.doAm > 0) _row('Độ ẩm', '${fmtNum(t.doAm)} %'),
-            _row('Trừ độ (${fmtPct(c.doPct)}%)', '${fmtKg(c.doKg)} kg'),
-            _row('Trừ tạp (${fmtPct(c.tapPct)}%)', '${fmtKg(c.tapKg)} kg'),
-          ],
-          _row('Khối lượng thực', '${fmtKg(c.net)} kg', bold: true),
-          if (t.price > 0) _row('Đơn giá', '${fmtMoney(t.price)} đ/kg'),
-          const Divider(height: 12),
-          _row('Thành tiền', '${fmtMoney(c.amount)} đ', bold: true, big: true),
         ],
       ),
     );
@@ -90,7 +194,7 @@ class ReceiptView extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
           Row(
@@ -100,67 +204,89 @@ class ReceiptView extends StatelessWidget {
                   child: Center(
                     child: Text(
                       '${b * Block.size + (col + 1) * Block.rows}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int col = 0; col < Block.cols; col++)
-                Expanded(
-                  child: Column(
-                    children: [
-                      for (int r = 0; r < Block.rows; r++)
-                        SizedBox(
-                          height: 26,
-                          child: Center(
-                            child: Text(
-                              v(col * Block.rows + r) > 0
-                                  ? fmtNum(v(col * Block.rows + r))
-                                  : '',
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                color: kNavy,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const Divider(height: 8),
-          Row(
-            children: [
-              for (int col = 0; col < Block.cols; col++)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      fmtKg(colTotal(col)),
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: kInk2,
+                        fontFeatures: kTabular,
                       ),
                     ),
                   ),
                 ),
             ],
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Tổng khối ${b + 1}: ${fmtKg(blockTotal)} kg',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: kPurple,
+          const SizedBox(height: 2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int col = 0; col < Block.cols; col++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 2,
+                      vertical: 2,
+                    ),
+                    child: Column(
+                      children: [
+                        for (int r = 0; r < Block.rows; r++)
+                          SizedBox(
+                            height: 24,
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  v(col * Block.rows + r) > 0
+                                      ? fmtNum(v(col * Block.rows + r))
+                                      : '',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: kNavy,
+                                    fontFeatures: kTabular,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              for (int col = 0; col < Block.cols; col++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        colTotal(col) > 0 ? fmtKg(colTotal(col)) : '',
+                        style: numStyle(14),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Divider(height: 1, color: kLine),
+          const SizedBox(height: 5),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Tổng khối ${b + 1}',
+                style: const TextStyle(fontSize: 12, color: kInk2),
               ),
-            ),
+              Text(
+                '${fmtKg(blockTotal)} kg',
+                style: numStyle(14, color: kNavy),
+              ),
+            ],
           ),
         ],
       ),
@@ -174,8 +300,10 @@ class ReceiptView extends StatelessWidget {
     bool big = false,
   }) {
     final style = TextStyle(
-      fontSize: big ? 20 : (bold ? 18 : 15),
-      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+      fontSize: big ? 20 : (bold ? 15 : 13.5),
+      fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+      color: bold ? kInk : kInk2,
+      fontFeatures: kTabular,
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -183,7 +311,17 @@ class ReceiptView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text(value, style: style),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: style.copyWith(
+                color: bold ? kInk : kInk,
+                fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -291,18 +429,28 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   Widget _oSo(
     String nhan,
     TextEditingController controller,
-    ValueChanged<String> onChanged,
-  ) {
+    ValueChanged<String> onChanged, {
+    IconData? icon,
+  }) {
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: kInk,
+        fontFeatures: kTabular,
+      ),
       decoration: InputDecoration(
         labelText: nhan,
         isDense: true,
-        filled: true,
-        fillColor: Colors.white,
-        border: const OutlineInputBorder(),
+        prefixIcon: icon == null ? null : Icon(icon, size: 18, color: kInk2),
+        prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 0),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(rCell),
+          borderSide: BorderSide(color: kindColor(t.kind), width: 2),
+        ),
       ),
       onChanged: onChanged,
     );
@@ -373,10 +521,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = kindColor(t.kind);
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
-        backgroundColor: kindColor(t.kind),
+        backgroundColor: accent,
         foregroundColor: Colors.white,
         title: Text(widget.isDraft ? 'Phiếu mới' : 'Chi tiết phiếu'),
         actions: [
@@ -397,169 +546,231 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
-                    controller: customerCtrl,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Tên khách hàng',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (v) => setState(() => t.customer = v.trim()),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: noteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Ghi chú',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (v) => setState(() => t.note = v.trim()),
-                  ),
-                  const SizedBox(height: 10),
-                  Card(
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Thông số phiếu (sửa được)',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SectionLabel('Người cân'),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: customerCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: kInk,
                           ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _oSo(
-                                  'Bì mỗi bao (kg)',
-                                  tareCtrl,
-                                  _onTareChanged,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _oSo(
-                                  'Số bao bì trừ',
-                                  bagTareCtrl,
-                                  _onBagTareChanged,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: InputDecorator(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Số mạ',
-                                    isDense: true,
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  child: Text(
-                                    '${t.calc.bags}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _oSo(
-                                  'Đơn giá (đ/kg)',
-                                  priceCtrl,
-                                  _onPriceChanged,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (t.kind == 1) ...[
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _oSo(
-                                    'Độ ẩm (%)',
-                                    doAmCtrl,
-                                    _onDoAmChanged,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _oSo(
-                                    'Trừ tạp (%)',
-                                    tapCtrl,
-                                    _onTapChanged,
-                                  ),
-                                ),
-                              ],
+                          decoration: const InputDecoration(
+                            labelText: 'Tên khách hàng',
+                            prefixIcon: Icon(
+                              Icons.person_outline,
+                              size: 18,
+                              color: kInk2,
                             ),
-                          ],
-                          const SizedBox(height: 10),
-                          // Thành tiền chỉ hiển thị, tính tự động
-                          InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Thành tiền (đ)',
-                              isDense: true,
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Text(
-                              fmtMoney(t.calc.amount),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 38,
+                              minHeight: 0,
                             ),
                           ),
-                        ],
-                      ),
+                          onChanged: (v) =>
+                              setState(() => t.customer = v.trim()),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: noteCtrl,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            color: kInk,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Ghi chú',
+                            prefixIcon: Icon(
+                              Icons.sticky_note_2_outlined,
+                              size: 18,
+                              color: kInk2,
+                            ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 38,
+                              minHeight: 0,
+                            ),
+                          ),
+                          onChanged: (v) => setState(() => t.note = v.trim()),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
-                  RepaintBoundary(
-                    key: _boundaryKey,
-                    child: ReceiptView(ticket: t),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SectionLabel('Thông số phiếu'),
+                        const SizedBox(height: 10),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _oSo(
+                                'Bì mỗi bao (kg)',
+                                tareCtrl,
+                                _onTareChanged,
+                                icon: Icons.inventory_2_outlined,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _oSo(
+                                'Số bao bì trừ',
+                                bagTareCtrl,
+                                _onBagTareChanged,
+                                icon: Icons.layers_outlined,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Số mạ',
+                                  isDense: true,
+                                  prefixIcon: Icon(
+                                    Icons.shopping_bag_outlined,
+                                    size: 18,
+                                    color: kInk2,
+                                  ),
+                                  prefixIconConstraints: BoxConstraints(
+                                    minWidth: 38,
+                                    minHeight: 0,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${t.calc.bags}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: kTabular,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _oSo(
+                                'Đơn giá (đ/kg)',
+                                priceCtrl,
+                                _onPriceChanged,
+                                icon: Icons.sell_outlined,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (t.kind == 1) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _oSo(
+                                  'Độ ẩm (%)',
+                                  doAmCtrl,
+                                  _onDoAmChanged,
+                                  icon: Icons.water_drop_outlined,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _oSo(
+                                  'Trừ tạp (%)',
+                                  tapCtrl,
+                                  _onTapChanged,
+                                  icon: Icons.filter_alt_outlined,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        // Thành tiền chỉ hiển thị, tính tự động
+                        InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Thành tiền (đ)',
+                            isDense: true,
+                            prefixIcon: Icon(
+                              Icons.payments_outlined,
+                              size: 18,
+                              color: kInk2,
+                            ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 38,
+                              minHeight: 0,
+                            ),
+                          ),
+                          child: Text(
+                            fmtMoney(t.calc.amount),
+                            style: numStyle(16, color: kOrange),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const SectionLabel('Phiếu gửi khách'),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(rCard),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: kLine),
+                        borderRadius: BorderRadius.circular(rCard),
+                      ),
+                      child: RepaintBoundary(
+                        key: _boundaryKey,
+                        child: ReceiptView(ticket: t),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: busy ? null : _shareImage,
-                      icon: const Icon(Icons.share),
-                      label: const Text('Chia sẻ ảnh'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _save,
-                      icon: const Icon(Icons.save),
-                      label: Text(
-                        widget.isDraft ? 'Lưu phiếu' : 'Lưu thay đổi',
+          Container(
+            decoration: const BoxDecoration(
+              color: kSurface,
+              border: Border(top: BorderSide(color: kLine)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: busy ? null : _shareImage,
+                        icon: const Icon(Icons.share, size: 18),
+                        label: const Text('Chia sẻ ảnh'),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(backgroundColor: accent),
+                        onPressed: _save,
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: Text(
+                          widget.isDraft ? 'Lưu phiếu' : 'Lưu thay đổi',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

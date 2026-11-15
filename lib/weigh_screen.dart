@@ -8,7 +8,9 @@ import 'history_screen.dart';
 import 'models.dart';
 import 'receipt_screen.dart';
 import 'settings.dart';
+import 'theme.dart';
 import 'utils.dart';
+import 'weight_cell.dart';
 
 class WeighScreen extends StatefulWidget {
   final int id; // 0 = Cà tươi, 1 = Cà nhân
@@ -89,7 +91,7 @@ class _WeighScreenState extends State<WeighScreen> {
   int get bagCount => blocks.fold(0, (s, b) => s + b.count);
   double get grossTotal => blocks.fold(0.0, (s, b) => s + b.total);
 
-  // Độ ẩm người dùng nhập (%) — chỉ cà nhân mới trừ độ
+  // Độ ẩm người dùng nhập (%), chỉ cà nhân mới trừ độ
   double get doAmInput => isNhan ? parseNumber(doCtrl.text) : 0;
 
   // % trừ độ tra từ bảng theo độ ẩm (0 khi ≤ 15 độ hoặc chưa nhập)
@@ -101,7 +103,7 @@ class _WeighScreenState extends State<WeighScreen> {
       return 'Nhập độ ẩm, app tự tra bảng để trừ độ';
     }
     if (doAmInput > doAmToiDaTraBang) {
-      return 'Vượt 25 độ — áp mức trừ tối đa ${fmtPct(phanTramTruToiDa)}%';
+      return 'Vượt 25 độ, áp mức trừ tối đa ${fmtPct(phanTramTruToiDa)}%';
     }
     return 'Trừ độ ${fmtPct(doPercent)}% = ${fmtKg(calc.doKg)} kg';
   }
@@ -215,13 +217,57 @@ class _WeighScreenState extends State<WeighScreen> {
     if (ok == true) _startNewTicket();
   }
 
+  // ----- Bảng cài đặt -----
+  InputDecoration _dec(String label, {String? helper, IconData? icon}) =>
+      InputDecoration(
+        labelText: label,
+        helperText: helper,
+        helperMaxLines: 2,
+        prefixIcon: icon == null
+            ? null
+            : Icon(icon, size: 18, color: kInk2),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 38,
+          minHeight: 0,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(rCell),
+          borderSide: BorderSide(color: mainColor, width: 2),
+        ),
+      );
+
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    required VoidCallback onChanged,
+    String? helper,
+    IconData? icon,
+    TextInputType? keyboard,
+    List<TextInputFormatter>? formatters,
+  }) {
+    return TextField(
+      controller: c,
+      keyboardType: keyboard ?? numberKeyboard,
+      inputFormatters: formatters,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: kInk,
+        fontFeatures: kTabular,
+      ),
+      decoration: _dec(label, helper: helper, icon: icon),
+      onChanged: (_) => onChanged(),
+    );
+  }
+
   void _openSettings() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
-          // Đổi giá trị trong sheet thì cập nhật cả sheet (dòng gợi ý trừ độ)
+          // Đổi giá trị trong bảng thì cập nhật cả bảng (dòng gợi ý trừ độ)
           // lẫn màn hình cân bên dưới.
           void changed() {
             setSheetState(() {});
@@ -229,152 +275,183 @@ class _WeighScreenState extends State<WeighScreen> {
             _persistSettingsSoon();
           }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              16,
-              16,
-              MediaQuery.of(ctx).viewInsets.bottom + 16,
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cài đặt - $partName',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: tareCtrl,
-                  keyboardType: numberKeyboard,
-                  decoration: const InputDecoration(
-                    labelText: 'Bì mỗi bao (kg)',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => changed(),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: bagTareCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Số bao bì để trừ',
-                    helperText: 'Để trống = bằng số bao đã cân',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => changed(),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.inventory_2_outlined,
-                      size: 18,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Số mạ đã nhập: $bagCount',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Tự xuống ô sau khi nhập đủ:',
-                  style: TextStyle(fontSize: 14, color: Colors.black87),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final lua in const <int, String>{
-                      0: 'Tắt',
-                      2: '2 số',
-                      3: '3 số',
-                      4: '4 số',
-                    }.entries)
-                      ChoiceChip(
-                        label: Text(lua.value),
-                        selected: _autoNextDigits == lua.key,
-                        onSelected: (_) {
-                          setSheetState(() => _autoNextDigits = lua.key);
-                          setState(() {});
-                          _persistSettingsSoon();
-                        },
-                      ),
-                  ],
-                ),
-                if (isNhan) ...[
-                  const SizedBox(height: 12),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SheetHandle(),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: mainColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(rCell),
+                        ),
+                        child: Icon(Icons.tune, size: 20, color: mainColor),
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: TextField(
-                          controller: doCtrl,
-                          keyboardType: numberKeyboard,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.,]'),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Cài đặt',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: kInk,
+                              ),
+                            ),
+                            Text(
+                              partName,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: kInk2,
+                              ),
                             ),
                           ],
-                          decoration: InputDecoration(
-                            labelText: 'Độ ẩm (%)',
-                            border: const OutlineInputBorder(),
-                            helperText: _moTaTruDo,
-                            helperMaxLines: 2,
-                          ),
-                          onChanged: (_) => changed(),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      Pill('Số mạ đã nhập: $bagCount', color: mainColor),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const SectionLabel('Trọng lượng'),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Expanded(
-                        child: TextField(
-                          controller: tapCtrl,
-                          keyboardType: numberKeyboard,
-                          decoration: const InputDecoration(
-                            labelText: 'Trừ tạp (%)',
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (_) => changed(),
+                        child: _field(
+                          tareCtrl,
+                          'Bì mỗi bao (kg)',
+                          onChanged: changed,
+                          icon: Icons.inventory_2_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _field(
+                          bagTareCtrl,
+                          'Số bao bì để trừ',
+                          onChanged: changed,
+                          helper: 'Để trống = bằng số bao đã cân',
+                          icon: Icons.layers_outlined,
+                          keyboard: TextInputType.number,
+                          formatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  if (isNhan) ...[
+                    const SizedBox(height: 18),
+                    const SectionLabel('Chất lượng'),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _field(
+                            doCtrl,
+                            'Độ ẩm (%)',
+                            onChanged: changed,
+                            helper: _moTaTruDo,
+                            icon: Icons.water_drop_outlined,
+                            formatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.,]'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _field(
+                            tapCtrl,
+                            'Trừ tạp (%)',
+                            onChanged: changed,
+                            icon: Icons.filter_alt_outlined,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Trừ độ tự tra bảng theo độ ẩm (bảng 15 tới 25 độ).',
+                      style: TextStyle(fontSize: 12, color: kInk2),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  const SectionLabel('Đơn giá'),
+                  const SizedBox(height: 10),
+                  _field(
+                    priceCtrl,
+                    'Đơn giá (đ/kg)',
+                    onChanged: changed,
+                    icon: Icons.sell_outlined,
+                    keyboard: numberKeyboard,
+                  ),
+                  const SizedBox(height: 18),
+                  const SectionLabel('Cách nhập'),
+                  const SizedBox(height: 10),
                   const Text(
-                    'Trừ độ tự tra bảng theo độ ẩm (bảng 15 – 25 độ).',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    'Tự xuống ô sau khi nhập đủ:',
+                    style: TextStyle(fontSize: 13, color: kInk2),
                   ),
-                ],
-                const SizedBox(height: 12),
-                TextField(
-                  controller: priceCtrl,
-                  keyboardType: numberKeyboard,
-                  decoration: const InputDecoration(
-                    labelText: 'Đơn giá (đ/kg)',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final lua in const <int, String>{
+                        0: 'Tắt',
+                        2: '2 số',
+                        3: '3 số',
+                        4: '4 số',
+                      }.entries)
+                        ChoiceChip(
+                          label: Text(lua.value),
+                          selected: _autoNextDigits == lua.key,
+                          selectedColor: mainColor.withValues(alpha: 0.12),
+                          side: BorderSide(
+                            color: _autoNextDigits == lua.key
+                                ? mainColor.withValues(alpha: 0.45)
+                                : kLine,
+                          ),
+                          labelStyle: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: _autoNextDigits == lua.key
+                                ? darkColor
+                                : kInk,
+                          ),
+                          onSelected: (_) {
+                            setSheetState(() => _autoNextDigits = lua.key);
+                            setState(() {});
+                            _persistSettingsSoon();
+                          },
+                        ),
+                    ],
                   ),
-                  onChanged: (_) => changed(),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: mainColor),
                     onPressed: () => Navigator.pop(ctx),
                     child: const Text('Xong'),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -444,16 +521,19 @@ class _WeighScreenState extends State<WeighScreen> {
       appBar: _appBar(),
       body: Column(
         children: [
-          _noteBanner(),
+          _summaryStrip(),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
               children: [
+                // Luôn giữ một chỗ cố định cho dải gợi ý: nếu để nó biến mất
+                // khỏi danh sách thì các ô nhập phía dưới bị tạo lại giữa lúc gõ.
+                _hintSlot(),
                 for (int bi = 0; bi < blocks.length; bi++) _blockCard(bi),
               ],
             ),
           ),
-          _bottomBar(),
+          _resultBar(),
         ],
       ),
     );
@@ -463,48 +543,53 @@ class _WeighScreenState extends State<WeighScreen> {
     return AppBar(
       backgroundColor: mainColor,
       foregroundColor: Colors.white,
-      titleSpacing: 8,
-      title: Align(
-        alignment: Alignment.centerLeft,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: _calculate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: darkColor,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.calculate_outlined,
-                    color: Colors.white,
-                    size: 20,
+      titleSpacing: 14,
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(Icons.coffee_outlined, size: 19, color: Colors.white),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'CÂN CÀ PHÊ',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6,
+                    color: Colors.white.withValues(alpha: 0.75),
                   ),
-                  SizedBox(width: 6),
-                  Text(
-                    'TÍNH TIỀN',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                ),
+                Text(
+                  partName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ),
+        ],
       ),
       actions: [
         IconButton(
           tooltip: 'Lịch sử và thống kê',
-          icon: const Icon(Icons.history),
+          icon: const Icon(Icons.history, size: 22),
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const HistoryScreen()),
@@ -516,18 +601,20 @@ class _WeighScreenState extends State<WeighScreen> {
           icon: Stack(
             alignment: Alignment.center,
             children: [
-              const Icon(Icons.layers_outlined, size: 30),
+              const Icon(Icons.layers_outlined, size: 23),
               Text(
                 '${blocks.length}',
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
         ),
         PopupMenuButton<String>(
+          tooltip: 'Tùy chọn',
+          icon: const Icon(Icons.more_vert, size: 22),
           onSelected: (v) {
             if (v == 'settings') _openSettings();
             if (v == 'reset') _confirmReset();
@@ -540,9 +627,20 @@ class _WeighScreenState extends State<WeighScreen> {
       ],
       // Hai tab chuyển giữa Cà tươi và Cà nhân
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(44),
-        child: Row(
-          children: [_tabButton('CÀ TƯƠI', 0), _tabButton('CÀ NHÂN', 1)],
+        preferredSize: const Size.fromHeight(50),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(rPill),
+            ),
+            child: Row(
+              children: [_tabButton('CÀ TƯƠI', 0), _tabButton('CÀ NHÂN', 1)],
+            ),
+          ),
         ),
       ),
     );
@@ -551,25 +649,23 @@ class _WeighScreenState extends State<WeighScreen> {
   Widget _tabButton(String label, int i) {
     final selected = widget.currentTab == i;
     return Expanded(
-      child: InkWell(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => widget.onTab(i),
-        child: Container(
-          height: 44,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: selected ? Colors.white : Colors.transparent,
-                width: 3,
-              ),
-            ),
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(rPill),
           ),
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: selected ? Colors.white : Colors.white70,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+              color: selected ? darkColor : Colors.white.withValues(alpha: 0.9),
             ),
           ),
         ),
@@ -577,27 +673,95 @@ class _WeighScreenState extends State<WeighScreen> {
     );
   }
 
-  Widget _noteBanner() {
-    return Container(
-      width: double.infinity,
-      color: kPink,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: const Text.rich(
-        TextSpan(
-          style: TextStyle(fontSize: 14, color: Colors.black87),
+  // Dải tổng hợp: số mạ, tổng cân, trừ bì + thanh tỷ lệ thực/trừ
+  Widget _summaryStrip() {
+    final c = calc;
+    final ratio = c.gross <= 0
+        ? 0.0
+        : (c.net.clamp(0.0, c.gross) / c.gross).toDouble();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              MiniStat(
+                icon: Icons.shopping_bag_outlined,
+                label: 'MẠ',
+                value: '${c.bags}',
+              ),
+              Container(
+                width: 1,
+                height: 24,
+                margin: const EdgeInsets.symmetric(horizontal: 14),
+                color: kLine,
+              ),
+              MiniStat(
+                icon: Icons.scale_outlined,
+                label: 'TỔNG CÂN',
+                value: fmtNum(c.gross),
+                unit: 'kg',
+              ),
+              const Spacer(),
+              if (c.tareTotal > 0)
+                Pill(
+                  'Bì ${fmtNum(c.tareTotal)} kg',
+                  color: mainColor,
+                  filled: false,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(rPill),
+            child: LayoutBuilder(
+              builder: (context, box) => Stack(
+                children: [
+                  Container(height: 4, color: kLine),
+                  Container(
+                    height: 4,
+                    width: box.maxWidth * ratio,
+                    color: mainColor,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hintSlot() {
+    // Chỉ nhắc khi đang thấy lưới nhập và chưa có số nào
+    final show = bagCount == 0 && blocks.any((b) => !b.collapsed);
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 160),
+      alignment: Alignment.topCenter,
+      child: show
+          ? _emptyHint()
+          : const SizedBox(width: double.infinity, height: 0),
+    );
+  }
+
+  Widget _emptyHint() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+        color: mainColor.withValues(alpha: 0.06),
+        borderColor: mainColor.withValues(alpha: 0.18),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Row(
           children: [
-            TextSpan(
-              text: '*Lưu ý:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Icon(Icons.touch_app_outlined, size: 18, color: mainColor),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Nhập số cân từng bao. Cân xong bấm TÍNH TIỀN để xem phiếu.',
+                style: TextStyle(fontSize: 12.5, color: kInk, height: 1.3),
+              ),
             ),
-            TextSpan(
-              text: ' Sau khi nhập xong, nhấn vào TÍNH TIỀN để xem phiếu, lưu hoặc chia sẻ! Nhấn vào ',
-            ),
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Icon(Icons.keyboard_double_arrow_up, size: 20),
-            ),
-            TextSpan(text: ' để cập nhật các thông tin cài đặt.'),
           ],
         ),
       ),
@@ -606,228 +770,263 @@ class _WeighScreenState extends State<WeighScreen> {
 
   Widget _blockCard(int bi) {
     final s = blocks[bi];
-    const totalStyle = TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.bold,
-      color: kNavy,
-    );
-
-    return Card(
-      color: Colors.white,
-      elevation: 2,
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-        child: Column(
-          children: [
-            if (!s.collapsed) ...[
-              // Hàng nhãn 5, 10, 15, 20, 25 (số bao tích lũy)
-              Row(
-                children: [
-                  for (int c = 0; c < Block.cols; c++)
-                    Expanded(
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: kNavy,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${bi * Block.size + (c + 1) * Block.rows}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(rCard),
+        border: Border.all(color: kLine),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 6, 8, 0),
+            child: Row(
+              children: [
+                Text(
+                  'Khối ${bi + 1}',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: kInk,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Pill('${s.count}/25', color: mainColor),
+                const Spacer(),
+                IconButton(
+                  tooltip: s.collapsed ? 'Mở rộng' : 'Thu gọn',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 34,
+                    height: 34,
+                  ),
+                  icon: Icon(
+                    s.collapsed ? Icons.expand_more : Icons.expand_less,
+                    size: 22,
+                    color: kInk2,
+                  ),
+                  onPressed: () => setState(() => s.collapsed = !s.collapsed),
+                ),
+              ],
+            ),
+          ),
+          if (!s.collapsed) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(rPill),
+                child: LayoutBuilder(
+                  builder: (context, box) => Stack(
+                    children: [
+                      Container(height: 3, color: kTint),
+                      Container(
+                        height: 3,
+                        width: box.maxWidth * (s.count / Block.size),
+                        color: mainColor.withValues(alpha: 0.65),
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 4),
-              // Lưới 5 cột, mỗi cột 5 ô xếp dọc
-              Row(
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (int c = 0; c < Block.cols; c++)
                     Expanded(
                       child: Column(
                         children: [
+                          _columnHead(bi, c),
                           for (int r = 0; r < Block.rows; r++)
-                            _cell(bi, c * Block.rows + r),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 6,
+                                left: 3,
+                                right: 3,
+                              ),
+                              child: WeightCell(
+                                controller: s.ctrls[c * Block.rows + r],
+                                node: s.nodes[c * Block.rows + r],
+                                accent: mainColor,
+                                autofocus:
+                                    widget.id == 0 && bi == 0 && c == 0 && r == 0,
+                                onChanged: (_) {
+                                  _onChanged();
+                                  _scheduleAutoNext(bi, c * Block.rows + r);
+                                },
+                                onEditingComplete: () =>
+                                    _focusNext(bi, c * Block.rows + r),
+                              ),
+                            ),
                         ],
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
-            ],
-            // Tổng từng cột: cột hẹp lại, có khoảng cách, số dài tự thu nhỏ
-            Row(
-              children: [
-                for (int c = 0; c < Block.cols; c++)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 7),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          fmtKg(s.colTotal(c)),
-                          maxLines: 1,
-                          style: totalStyle,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
             ),
-            // Hàng cuối: thu gọn | tổng khối | số bao
-            Row(
-              children: [
-                IconButton(
-                  tooltip: s.collapsed ? 'Mở rộng' : 'Thu gọn',
-                  icon: Icon(
-                    s.collapsed
-                        ? Icons.keyboard_double_arrow_down
-                        : Icons.keyboard_double_arrow_up,
-                    color: kOrange,
-                    size: 30,
-                  ),
-                  onPressed: () => setState(() => s.collapsed = !s.collapsed),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        fmtKg(s.total),
-                        maxLines: 1,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: kPurple,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  constraints: const BoxConstraints(minWidth: 44),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  color: kRed,
-                  child: Text(
-                    '${s.count}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ),
-                const SizedBox(width: 4),
-              ],
-            ),
+            _columnTotals(s),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _cell(int bi, int i) {
-    final s = blocks[bi];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: TextField(
-        controller: s.ctrls[i],
-        focusNode: s.nodes[i],
-        // Chỉ phần Cà tươi tự đặt con trỏ khi mở app
-        autofocus: widget.id == 0 && bi == 0 && i == 0,
-        keyboardType: numberKeyboard,
-        textInputAction: TextInputAction.next,
-        textAlign: TextAlign.center,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+          _blockFooter(s),
         ],
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: kNavy,
-        ),
-        decoration: const InputDecoration(
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(vertical: 14),
-          enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: Color(0xFFDDDDDD), width: 2),
-          ),
-          focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: kNavy, width: 2),
-          ),
-        ),
-        onChanged: (_) {
-          _onChanged();
-          _scheduleAutoNext(bi, i);
-        },
-        onEditingComplete: () => _focusNext(bi, i),
       ),
     );
   }
 
-  Widget _bottomBar() {
-    final c = calc;
-    const valueStyle = TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.bold,
-      color: kOrange,
+  // Nhãn tích luỹ số bao của cột: 5, 10, 15, 20, 25
+  Widget _columnHead(int bi, int c) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: kTint,
+          borderRadius: BorderRadius.circular(rPill),
+        ),
+        child: Text(
+          '${bi * Block.size + (c + 1) * Block.rows}',
+          style: const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            color: kInk2,
+            fontFeatures: kTabular,
+          ),
+        ),
+      ),
     );
-    return Material(
-      color: const Color(0xFFF4F8FD),
-      elevation: 8,
+  }
+
+  Widget _columnTotals(Block s) {
+    // Khối chưa nhập gì thì không hiện hàng tổng cột (tránh một dãy số 0 thừa)
+    if (s.count == 0) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 2, 10, 0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: kLine)),
+      ),
+      child: Row(
+        children: [
+          for (int c = 0; c < Block.cols; c++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    s.colTotal(c) > 0 ? fmtKg(s.colTotal(c)) : '',
+                    maxLines: 1,
+                    style: numStyle(16, color: kNavy),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _blockFooter(Block s) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 12, 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: kLine)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            'Tổng khối',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: kInk2,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(fmtKg(s.total), style: numStyle(21)),
+                  const SizedBox(width: 3),
+                  const Text(
+                    'kg',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: kInk2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Spacer(),
+          Pill('${s.count} mạ', color: mainColor),
+        ],
+      ),
+    );
+  }
+
+  // Thanh kết quả luôn hiện: khối lượng thực, thành tiền và nút tính tiền
+  Widget _resultBar() {
+    final c = calc;
+    return Container(
+      decoration: const BoxDecoration(
+        color: kSurface,
+        border: Border(top: BorderSide(color: kLine)),
+      ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
           child: Row(
             children: [
-              const Icon(Icons.grass, color: kOrange, size: 30),
-              const SizedBox(width: 6),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(fmtKg(c.net), style: valueStyle),
+              Expanded(
+                flex: 5,
+                child: _resultValue(
+                  label: 'KHỐI LƯỢNG THỰC',
+                  value: fmtKg(c.net),
+                  unit: 'kg',
+                  color: kNavy,
                 ),
+              ),
+              Container(
+                width: 1,
+                height: 32,
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                color: kLine,
               ),
               Expanded(
-                child: Center(
-                  child: IconButton(
-                    tooltip: 'Cài đặt',
-                    icon: const Icon(
-                      Icons.keyboard_double_arrow_up,
-                      color: kNavy,
-                      size: 30,
-                    ),
-                    onPressed: _openSettings,
+                flex: 6,
+                child: _resultValue(
+                  label: 'THÀNH TIỀN',
+                  value: fmtMoney(c.amount),
+                  unit: 'đ',
+                  color: kOrange,
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 46,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: darkColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                   ),
+                  onPressed: _calculate,
+                  child: const Text('TÍNH TIỀN'),
                 ),
-              ),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(fmtMoney(c.amount), style: valueStyle),
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.monetization_on_outlined,
-                color: kOrange,
-                size: 32,
               ),
             ],
           ),
@@ -835,4 +1034,41 @@ class _WeighScreenState extends State<WeighScreen> {
       ),
     );
   }
+
+  Widget _resultValue({
+    required String label,
+    required String value,
+    required String unit,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: labelStyle(size: 9.5), maxLines: 1),
+        const SizedBox(height: 3),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(value, style: numStyle(23, color: color)),
+              const SizedBox(width: 3),
+              Text(
+                unit,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: kInk2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
+

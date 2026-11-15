@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 
 // ---------- Màu sắc ----------
-const kBlue = Color(0xFF2196F3); // Cà tươi
-const kBlueDark = Color(0xFF1565C0);
-const kGreen = Color(0xFF43A047); // Cà nhân
-const kGreenDark = Color(0xFF2E7D32);
-const kNavy = Color(0xFF0B4F8A);
-const kPink = Color(0xFFFFDADA);
-const kBg = Color(0xFFF0F2F7);
-const kPurple = Color(0xFF9C27B0);
-const kOrange = Color(0xFFF59E0B);
-const kRed = Color(0xFFF44336);
+// Mỗi phần có một màu nhận diện riêng: xanh dương = Cà tươi, xanh lá = Cà nhân.
+// Các màu đã được làm đậm để chữ trắng đạt tương phản AA trên nền màu.
+const kBlue = Color(0xFF0B5FA5); // Cà tươi
+const kBlueDark = Color(0xFF084A80);
+const kGreen = Color(0xFF166B4A); // Cà nhân
+const kGreenDark = Color(0xFF0E4F36);
+
+const kNavy = Color(0xFF10293A); // số liệu chính
+const kInk = Color(0xFF12232F); // chữ chính
+const kInk2 = Color(0xFF51636F); // chữ phụ (4.9:1 trên nền trắng, 4.3:1 trên nền xám)
+const kLine = Color(0xFFDCE5EE); // đường kẻ mảnh
+const kSurface = Color(0xFFFFFFFF);
+const kBg = Color(0xFFEDF1F6); // nền chung
+const kTint = Color(0xFFF4F7FA); // nền ô nhập khi còn trống
+
+const kPink = Color(0xFFFFF3E8); // nền ghi chú nhẹ
+const kPurple = Color(0xFF10293A); // tổng khối
+const kOrange = Color(0xFFB45309); // tiền (đạt 4.6:1 trên nền trắng)
+const kRed = Color(0xFFB3261E);
 
 const kindNames = ['Cà tươi', 'Cà nhân'];
 Color kindColor(int kind) => kind == 1 ? kGreen : kBlue;

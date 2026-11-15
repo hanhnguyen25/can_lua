@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'models.dart';
+import 'theme.dart';
 import 'utils.dart';
+import 'weight_cell.dart';
 
 // ---------- Sửa số cân của một phiếu đã lưu ----------
 // Dùng lại đúng cách chia lưới 5 cột x 5 hàng như màn hình cân.
@@ -19,8 +20,6 @@ class GridEditorScreen extends StatefulWidget {
 
 class _GridEditorScreenState extends State<GridEditorScreen> {
   final List<Block> blocks = [];
-
-  static const _numberKeyboard = TextInputType.numberWithOptions(decimal: true);
 
   @override
   void initState() {
@@ -92,17 +91,27 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = widget.color;
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
-        backgroundColor: widget.color,
+        backgroundColor: accent,
         foregroundColor: Colors.white,
         title: const Text('Sửa số cân'),
         actions: [
-          TextButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.check, color: Colors.white),
-            label: const Text('Xong', style: TextStyle(color: Colors.white)),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.check, color: Colors.white, size: 20),
+              label: const Text(
+                'Xong',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -110,21 +119,34 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         children: [
           Container(
             width: double.infinity,
-            color: kPink,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: const Text(
-              'Sửa trực tiếp vào các ô, ô trống = bao chưa cân.',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
+            color: accent.withValues(alpha: 0.07),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 16, color: accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Sửa trực tiếp vào các ô, ô trống = bao chưa cân.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: kInk,
+                      height: 1.3,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               children: [
                 for (int bi = 0; bi < blocks.length; bi++) _blockCard(bi),
                 OutlinedButton.icon(
                   onPressed: _addBlock,
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add, size: 18),
                   label: const Text('Thêm khối'),
                 ),
               ],
@@ -138,153 +160,204 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
   Widget _blockCard(int bi) {
     final s = blocks[bi];
-    return Card(
-      color: Colors.white,
-      elevation: 2,
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-        child: Column(
-          children: [
-            // Số bao tích luỹ của từng cột
-            Row(
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(rCard),
+        border: Border.all(color: kLine),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 6, 6, 0),
+            child: Row(
               children: [
-                for (int c = 0; c < Block.cols; c++)
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        '${bi * Block.size + (c + 1) * Block.rows}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
+                Text(
+                  'Khối ${bi + 1}',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: kInk,
                   ),
+                ),
+                const SizedBox(width: 8),
+                Pill('${s.count}/25', color: widget.color),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Xóa khối',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 34,
+                    height: 34,
+                  ),
+                  onPressed: blocks.length > 1 ? () => _removeBlock(bi) : null,
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: kRed,
+                  ),
+                ),
               ],
             ),
-            Row(
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 2, 10, 0),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (int c = 0; c < Block.cols; c++)
                   Expanded(
                     child: Column(
                       children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: kTint,
+                              borderRadius: BorderRadius.circular(rPill),
+                            ),
+                            child: Text(
+                              '${bi * Block.size + (c + 1) * Block.rows}',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: kInk2,
+                                fontFeatures: kTabular,
+                              ),
+                            ),
+                          ),
+                        ),
                         for (int r = 0; r < Block.rows; r++)
-                          _cell(bi, c * Block.rows + r),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: 6,
+                              left: 3,
+                              right: 3,
+                            ),
+                            child: WeightCell(
+                              controller: s.ctrls[c * Block.rows + r],
+                              node: s.nodes[c * Block.rows + r],
+                              accent: widget.color,
+                              onChanged: (_) => _onChanged(),
+                              onEditingComplete: () =>
+                                  _focusNext(bi, c * Block.rows + r),
+                            ),
+                          ),
                       ],
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 6),
-            Row(
+          ),
+          Container(
+            margin: const EdgeInsets.fromLTRB(10, 2, 10, 0),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: kLine)),
+            ),
+            child: Row(
               children: [
                 for (int c = 0; c < Block.cols; c++)
                   Expanded(
-                    child: Text(
-                      fmtKg(s.colTotal(c)),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: kNavy,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          s.colTotal(c) > 0 ? fmtKg(s.colTotal(c)) : '',
+                          maxLines: 1,
+                          style: numStyle(16, color: kNavy),
+                        ),
                       ),
                     ),
                   ),
               ],
             ),
-            Row(
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 8, 12, 12),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: kLine)),
+            ),
+            child: Row(
               children: [
-                IconButton(
-                  tooltip: 'Xóa khối',
-                  onPressed: blocks.length > 1 ? () => _removeBlock(bi) : null,
-                  icon: const Icon(Icons.delete_outline, color: kRed),
+                const Text(
+                  'Tổng khối',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: kInk2,
+                    letterSpacing: 0.4,
+                  ),
                 ),
-                Expanded(
-                  child: Text(
-                    '${fmtKg(s.total)} kg · ${s.count} bao',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: kPurple,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(fmtKg(s.total), style: numStyle(21)),
+                        const SizedBox(width: 3),
+                        const Text(
+                          'kg',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: kInk2,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 48),
+                const Spacer(),
+                Pill('${s.count} mạ', color: widget.color),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _cell(int bi, int i) {
-    final s = blocks[bi];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: TextField(
-        controller: s.ctrls[i],
-        focusNode: s.nodes[i],
-        keyboardType: _numberKeyboard,
-        textInputAction: TextInputAction.next,
-        textAlign: TextAlign.center,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+          ),
         ],
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: kNavy,
-        ),
-        decoration: const InputDecoration(
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(vertical: 12),
-          enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: Color(0xFFDDDDDD), width: 2),
-          ),
-          focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: kNavy, width: 2),
-          ),
-        ),
-        onChanged: (_) => _onChanged(),
-        onEditingComplete: () => _focusNext(bi, i),
       ),
     );
   }
 
   Widget _bottomBar() {
-    return Material(
-      color: const Color(0xFFF4F8FD),
-      elevation: 8,
+    return Container(
+      decoration: const BoxDecoration(
+        color: kSurface,
+        border: Border(top: BorderSide(color: kLine)),
+      ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Row(
             children: [
-              const Icon(Icons.scale, color: kOrange, size: 30),
+              const Icon(Icons.scale_outlined, color: kInk2, size: 20),
               const SizedBox(width: 8),
               Text(
-                '${fmtKg(grossTotal)} kg',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: kNavy,
+                fmtKg(grossTotal),
+                style: numStyle(22),
+              ),
+              const SizedBox(width: 3),
+              const Text(
+                'kg',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: kInk2,
                 ),
               ),
               const Spacer(),
-              Text(
-                '$bagCount bao',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: kRed,
-                ),
-              ),
+              Pill('$bagCount mạ', color: widget.color),
             ],
           ),
         ),

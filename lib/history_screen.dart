@@ -5,6 +5,7 @@ import 'export.dart';
 import 'models.dart';
 import 'receipt_screen.dart';
 import 'storage.dart';
+import 'theme.dart';
 import 'utils.dart';
 
 // Cộng dồn số liệu cho thống kê
@@ -124,6 +125,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           title: const Text('Lịch sử'),
           actions: [
             PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
               onSelected: _onMenu,
               itemBuilder: (_) => const [
                 PopupMenuItem(
@@ -143,6 +145,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
+            indicatorWeight: 3,
+            labelStyle: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
             tabs: [
               Tab(text: 'PHIẾU'),
               Tab(text: 'THỐNG KÊ'),
@@ -200,22 +208,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
           child: TextField(
+            style: const TextStyle(fontSize: 14, color: kInk),
             decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: Icon(Icons.search, size: 20, color: kInk2),
               hintText: 'Tìm theo tên khách, ghi chú',
-              filled: true,
-              fillColor: Colors.white,
-              isDense: true,
-              border: OutlineInputBorder(),
+              hintStyle: TextStyle(fontSize: 13.5, color: kInk2),
+              prefixIconConstraints: BoxConstraints(
+                minWidth: 42,
+                minHeight: 0,
+              ),
             ),
             onChanged: (v) => setState(() => query = v),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Row(
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
               for (int i = 0; i < labels.length; i++)
                 Padding(
@@ -232,58 +244,124 @@ class _HistoryScreenState extends State<HistoryScreen> {
         Expanded(
           child: shown.isEmpty
               ? Center(
-                  child: Text(
-                    tickets.isEmpty
-                        ? 'Chưa có phiếu nào được lưu'
-                        : 'Không tìm thấy phiếu phù hợp',
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.receipt_long_outlined,
+                        size: 42,
+                        color: kLine,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        tickets.isEmpty
+                            ? 'Chưa có phiếu nào được lưu'
+                            : 'Không tìm thấy phiếu phù hợp',
+                        style: const TextStyle(color: kInk2, fontSize: 14),
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 16),
                   itemCount: shown.length,
-                  itemBuilder: (context, i) {
-                    final t = shown[i];
-                    final c = t.calc;
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: kindColor(t.kind),
-                          child: const Icon(Icons.scale, color: Colors.white),
-                        ),
-                        title: Text(
-                          t.customer.trim().isEmpty
-                              ? '(Không tên)'
-                              : t.customer,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          '${kindNames[t.kind]} · ${fmtDateTime(t.time)} · ${c.bags} mạ',
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${fmtKg(c.net)} kg',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text('${fmtMoney(c.amount)} đ'),
-                          ],
-                        ),
-                        onTap: () => _open(t),
-                      ),
-                    );
-                  },
+                  itemBuilder: (context, i) => _ticketCard(shown[i]),
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _ticketCard(Ticket t) {
+    final c = t.calc;
+    final accent = kindColor(t.kind);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _open(t),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kLine),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 9, 10, 9),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                t.customer.trim().isEmpty
+                                    ? '(Không tên)'
+                                    : t.customer,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: kInk,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${kindNames[t.kind]} · ${fmtDateTime(t.time)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: kInk2,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Pill('${c.bags} mạ', color: accent),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${fmtKg(c.net)} kg',
+                                style: numStyle(15, color: kNavy),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${fmtMoney(c.amount)} đ',
+                                style: numStyle(14, color: kOrange),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Vạch màu theo phần, cao đúng bằng thẻ
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(width: 4, color: accent),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -293,6 +371,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _statsTab() {
     final list = _inMonth().where((t) => t.kind == statKind).toList();
+    final accent = kindColor(statKind);
 
     final total = _Agg();
     final byDay = <int, _Agg>{};
@@ -312,7 +391,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ..sort((a, b) => b.value.money.compareTo(a.value.money));
 
     return ListView(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
       children: [
         SegmentedButton<int>(
           segments: const [
@@ -320,88 +399,94 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ButtonSegment(value: 1, label: Text('Cà nhân')),
           ],
           selected: {statKind},
+          showSelectedIcon: false,
           onSelectionChanged: (s) => setState(() => statKind = s.first),
         ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () => _shiftMonth(-1),
-            ),
-            Text(
-              'Tháng ${month.month}/${month.year}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => _shiftMonth(1),
-            ),
-          ],
-        ),
-        if (list.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: Text('Không có phiếu trong tháng này')),
-          )
-        else ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _statRow('Số phiếu', '${total.count}'),
-                  _statRow('Số mạ', '${total.bags}'),
-                  _statRow(
-                    'Khối lượng thực',
-                    '${fmtKg(total.net)} kg',
-                    bold: true,
-                  ),
-                  const Divider(),
-                  _statRow(
-                    'Thành tiền',
-                    '${fmtMoney(total.money)} đ',
-                    bold: true,
-                  ),
-                ],
-              ),
-            ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(rPill),
+            border: Border.all(color: kLine),
           ),
-          _header('Theo ngày'),
-          Card(
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () => _shiftMonth(-1),
+              ),
+              Expanded(
+                child: Text(
+                  'Tháng ${month.month}/${month.year}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: kInk,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => _shiftMonth(1),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (list.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 48),
             child: Column(
               children: [
-                for (final d in days)
-                  ListTile(
-                    dense: true,
-                    title: Text('${two(d)}/${two(month.month)}'),
-                    subtitle: Text(
-                      '${byDay[d]!.count} phiếu · ${fmtKg(byDay[d]!.net)} kg',
-                    ),
-                    trailing: Text(
-                      '${fmtMoney(byDay[d]!.money)} đ',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                const Icon(
+                  Icons.bar_chart_rounded,
+                  size: 44,
+                  color: kLine,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Không có phiếu trong tháng này',
+                  style: TextStyle(color: kInk2, fontSize: 14),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          _totalsCard(total, accent),
+          const SizedBox(height: 14),
+          const SectionLabel('Theo ngày'),
+          const SizedBox(height: 8),
+          _dayChart(byDay, accent),
+          const SizedBox(height: 8),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              children: [
+                for (final d in days) _statTile(
+                  title: '${two(d)}/${two(month.month)}',
+                  subtitle: '${byDay[d]!.count} phiếu · ${fmtKg(byDay[d]!.net)} kg',
+                  money: byDay[d]!.money,
+                  accent: accent,
+                ),
               ],
             ),
           ),
-          _header('Theo khách hàng'),
-          Card(
+          const SizedBox(height: 14),
+          const SectionLabel('Theo khách hàng'),
+          const SizedBox(height: 8),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Column(
               children: [
-                for (final e in customers)
-                  ListTile(
-                    dense: true,
-                    title: Text(e.key),
-                    subtitle: Text(
+                for (final e in customers) _statTile(
+                  title: e.key,
+                  subtitle:
                       '${e.value.count} phiếu · ${fmtKg(e.value.net)} kg',
-                    ),
-                    trailing: Text(
-                      '${fmtMoney(e.value.money)} đ',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                  money: e.value.money,
+                  accent: accent,
+                ),
               ],
             ),
           ),
@@ -410,26 +495,216 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _header(String s) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-    child: Text(
-      s,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-    ),
-  );
-
-  Widget _statRow(String label, String value, {bool bold = false}) {
-    final style = TextStyle(
-      fontSize: bold ? 18 : 15,
-      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-    );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _totalsCard(_Agg total, Color accent) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent,
+        borderRadius: BorderRadius.circular(rCard),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(label, style: style),
-          Text(value, style: style),
+          Row(
+            children: [
+              _totalsCell('SỐ PHIẾU', '${total.count}', Colors.white),
+              Container(
+                width: 1,
+                height: 28,
+                color: Colors.white.withValues(alpha: 0.25),
+              ),
+              _totalsCell('SỐ MẠ', '${total.bags}', Colors.white),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: Colors.white.withValues(alpha: 0.2)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _totalsCell(
+                'KHỐI LƯỢNG THỰC',
+                '${fmtKg(total.net)} kg',
+                Colors.white,
+                size: 19,
+              ),
+              _totalsCell(
+                'THÀNH TIỀN',
+                '${fmtMoney(total.money)} đ',
+                Colors.white,
+                size: 19,
+                alignEnd: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _totalsCell(
+    String label,
+    String value,
+    Color color, {
+    double size = 16,
+    bool alignEnd = false,
+  }) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: alignEnd
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+              color: color.withValues(alpha: 0.75),
+            ),
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+            child: Text(
+              value,
+              style: numStyle(size, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Biểu đồ cột thành tiền theo ngày trong tháng
+  Widget _dayChart(Map<int, _Agg> byDay, Color accent) {
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    double max = 0;
+    for (final a in byDay.values) {
+      if (a.money > max) max = a.money;
+    }
+
+    if (max <= 0) {
+      return AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        child: Row(
+          children: [
+            const Icon(Icons.insights_outlined, size: 18, color: kInk2),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Chưa nhập đơn giá nên chưa có thành tiền theo ngày.',
+                style: TextStyle(fontSize: 12.5, color: kInk2, height: 1.3),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Cao nhất ${fmtMoney(max)} đ',
+                style: const TextStyle(fontSize: 11, color: kInk2),
+              ),
+              const Spacer(),
+              const Text(
+                'đ/ngày',
+                style: TextStyle(fontSize: 11, color: kInk2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 96,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (int d = 1; d <= lastDay; d++)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                            height: byDay[d] == null
+                                ? 0
+                                : (byDay[d]!.money / max * 76).clamp(
+                                    3.0,
+                                    76.0,
+                                  ),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            d % 5 == 0 || d == 1 ? '$d' : '',
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              color: kInk2,
+                              fontFeatures: kTabular,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statTile({
+    required String title,
+    required String subtitle,
+    required double money,
+    required Color accent,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 7, 14, 7),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: kInk,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11.5, color: kInk2),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${fmtMoney(money)} đ',
+            style: numStyle(13.5, color: kNavy),
+          ),
         ],
       ),
     );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'utils.dart';
+import 'theme.dart';
 import 'weigh_screen.dart';
 
 void main() => runApp(const CanApp());
@@ -13,7 +13,7 @@ class CanApp extends StatelessWidget {
     return MaterialApp(
       title: 'Cân cà phê',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: kBlue, useMaterial3: true),
+      theme: buildAppTheme(),
       // Giảm 10% cỡ chữ so với cài đặt cỡ chữ của máy
       builder: (context, child) {
         final mq = MediaQuery.of(context);

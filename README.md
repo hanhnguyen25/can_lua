@@ -32,6 +32,9 @@ chia sẻ ảnh phiếu.
 - **Chạy trên web**: `flutter build web --release` ra `build/web`. Trên trình duyệt, *Xuất Excel*,
   *Sao lưu JSON* và *Chia sẻ ảnh phiếu* sẽ **tải file trực tiếp** về máy; dữ liệu lưu trong
   `localStorage` nên có dải nhắc sao lưu ở màn hình Lịch sử.
+- **Giao diện theo từng phần**: Cà tươi dùng màu xanh dương, Cà nhân dùng màu xanh lá. Hai số quan trọng
+  nhất (khối lượng thực và thành tiền) luôn hiện ở thanh dưới cùng, kèm nút *TÍNH TIỀN*; dải trên cùng
+  cho biết số mạ, tổng cân, trừ bì và tỷ lệ thực/trừ. Ô cân đổi màu khi đã nhập, số dài tự thu nhỏ chữ.
 - **Chữ nhỏ gọn**: toàn bộ cỡ chữ giảm 10 % so với cài đặt cỡ chữ của máy.
 - **Lịch sử**: tìm theo tên khách/ghi chú, lọc theo loại; **thống kê** theo tháng, theo ngày,
   theo khách hàng (số phiếu, số bao, khối lượng thực, thành tiền).
@@ -44,7 +47,7 @@ chia sẻ ảnh phiếu.
 | `lib/main.dart` | Khởi động app, 2 tab Cà tươi / Cà nhân (`IndexedStack`) |
 | `lib/models.dart` | `Block` (lưới 25 ô), `Calc` (công thức tính), `Ticket` (phiếu + JSON) |
 | `lib/do_am_ca_phe.dart` | Bảng trừ độ ẩm và hàm tra cứu (15 → 25 độ) |
-| `lib/weigh_screen.dart` | Màn hình cân, bảng cài đặt, thanh tổng kết |
+| `lib/weigh_screen.dart` | Màn hình cân: dải tổng hợp, lưới ô, thanh kết quả, bảng cài đặt |
 | `lib/receipt_screen.dart` | Xem phiếu, sửa tên khách/ghi chú, lưu, chia sẻ ảnh, xoá |
 | `lib/grid_editor.dart` | Sửa số cân của phiếu đã lưu |
 | `lib/history_screen.dart` | Danh sách phiếu và thống kê |
@@ -52,6 +55,8 @@ chia sẻ ảnh phiếu.
 | `lib/settings.dart` | Lưu cài đặt nhập liệu theo từng phần |
 | `lib/export.dart` | Xuất Excel, sao lưu/khôi phục, chia sẻ ảnh |
 | `lib/utils.dart` | Màu sắc, đọc số, định dạng kg / % / tiền / ngày giờ |
+| `lib/theme.dart` | Hệ thống giao diện: bảng màu, bo góc, kiểu chữ số, thẻ và nhãn dùng chung |
+| `lib/weight_cell.dart` | Ô nhập số cân dùng chung cho màn hình cân và màn hình sửa số cân |
 | `tool/generate_icons.py` | Sinh lại bộ icon (Pillow) |
 
 ## Chạy và kiểm thử
